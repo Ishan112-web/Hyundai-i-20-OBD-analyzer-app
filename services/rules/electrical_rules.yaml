@@ -1,0 +1,238 @@
+# Electrical System Rules
+# Detects battery issues, alternator problems, and control module communication faults
+
+rules:
+  # Threshold Rule - Battery Voltage Low (Engine Off)
+  - rule_id: "RULE_BATTERY_VOLTAGE_LOW_OFF"
+    name: "Low Battery Voltage (Engine Off)"
+    description: "Detects battery voltage below specification with engine off"
+    category: "electrical"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.85
+    conditions:
+      - sensor_name: "battery_voltage_v"
+        sensor_unit: "V"
+        operator: "less_than"
+        threshold: 11.5
+        condition_group: "low_voltage"
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "equal"
+        threshold: 0
+        condition_group: "engine_off"
+    explanation_template: "Battery voltage {observed_value}V with engine off, below minimum of {threshold}V"
+    recommended_checks:
+      - "Check battery age and condition"
+      - "Test battery with load tester"
+      - "Check for parasitic draw"
+      - "Inspect battery terminals for corrosion"
+    recommended_actions:
+      - "Charge battery and retest"
+      - "Replace battery if failed load test"
+      - "Clean battery terminals"
+      - "Find and repair parasitic draw"
+    safety_notes:
+      - "Low battery voltage may cause no-start condition"
+      - "Repeated deep discharge damages battery"
+    source: "generic_obd"
+    dtc_hints: ["P0562"]
+    cooldown_seconds: 600
+
+  # Threshold Rule - Battery Voltage Low (Engine Running)
+  - rule_id: "RULE_BATTERY_VOLTAGE_LOW_RUNNING"
+    name: "Low Battery Voltage (Engine Running)"
+    description: "Detects charging system voltage below specification with engine running"
+    category: "electrical"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.9
+    conditions:
+      - sensor_name: "battery_voltage_v"
+        sensor_unit: "V"
+        operator: "less_than"
+        threshold: 13.0
+        condition_group: "low_charging"
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "greater_than"
+        threshold: 800
+        condition_group: "engine_running"
+    explanation_template: "Charging voltage only {observed_value}V at {engine_rpm} RPM, below minimum of {threshold}V"
+    recommended_checks:
+      - "Check alternator output at battery terminals"
+      - "Inspect alternator belt tension and condition"
+      - "Check alternator wiring and connections"
+      - "Test battery load capacity"
+    recommended_actions:
+      - "Replace alternator if not charging"
+      - "Tighten or replace serpentine belt"
+      - "Repair alternator wiring"
+      - "Replace battery if failed"
+    safety_notes:
+      - "Vehicle will stall when battery depletes"
+      - "Electronic systems may malfunction at low voltage"
+    source: "generic_obd"
+    dtc_hints: ["P0562", "P0620", "P0621", "P0622"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - Battery Voltage High (Overcharging)
+  - rule_id: "RULE_BATTERY_VOLTAGE_HIGH"
+    name: "Battery Overcharging"
+    description: "Detects charging voltage exceeding maximum specification"
+    category: "electrical"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.9
+    conditions:
+      - sensor_name: "battery_voltage_v"
+        sensor_unit: "V"
+        operator: "greater_than"
+        threshold: 15.5
+        condition_group: "overcharging"
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "greater_than"
+        threshold: 800
+        condition_group: "engine_running"
+    explanation_template: "Charging voltage {observed_value}V exceeds maximum of {threshold}V - overcharging detected"
+    recommended_checks:
+      - "Check alternator voltage regulator"
+      - "Test battery for sulfation (causes high voltage)"
+      - "Verify voltage reading accuracy"
+    recommended_actions:
+      - "Replace alternator voltage regulator or alternator"
+      - "Replace battery if sulfated"
+      - "Check voltage sense wire connection"
+    safety_notes:
+      - "Overcharging damages battery, electronics, and bulbs"
+      - "May cause battery gassing and explosion risk"
+      - "ECU and modules can be damaged"
+    source: "generic_obd"
+    dtc_hints: ["P0563"]
+    cooldown_seconds: 300
+
+  # Correlation Rule - Alternator Failure Under Load
+  - rule_id: "RULE_ALTERNATOR_FAILURE_LOAD"
+    name: "Alternator Failure Under Load"
+    description: "Detects voltage drop under high electrical load indicating alternator failure"
+    category: "electrical"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 3
+    confidence: 0.85
+    conditions:
+      - sensor_name: "battery_voltage_v"
+        sensor_unit: "V"
+        operator: "less_than"
+        threshold: 12.5
+        condition_group: "voltage_drop"
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "greater_than"
+        threshold: 1500
+        condition_group: "engine_speed"
+      - sensor_name: "electrical_load_pct"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 70.0
+        condition_group: "high_load"
+    explanation_template: "Voltage dropped to {battery_voltage_v}V at {engine_rpm} RPM with {electrical_load_pct}% electrical load - alternator cannot maintain charge"
+    recommended_checks:
+      - "Test alternator output at high RPM with loads on"
+      - "Check alternator belt for slipping"
+      - "Inspect alternator wiring for voltage drop"
+      - "Test battery capacity"
+    recommended_actions:
+      - "Replace alternator if output insufficient"
+      - "Replace serpentine belt and tensioner"
+      - "Upgrade alternator if aftermarket loads added"
+      - "Repair high resistance wiring"
+    safety_notes:
+      - "Alternator failure under load leads to stall"
+      - "High electrical load accelerates failure"
+    source: "hyundai_specific"
+    dtc_hints: ["P0562", "P0620", "P0621", "P0622"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - Control Module Communication Errors
+  - rule_id: "RULE_COMMUNICATION_ERRORS"
+    name: "Control Module Communication Errors"
+    description: "Detects CAN bus communication errors between modules"
+    category: "electrical"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.75
+    conditions:
+      - sensor_name: "control_module_comm_errors"
+        sensor_unit: "count"
+        operator: "greater_than"
+        threshold: 0
+    explanation_template: "Control module communication errors detected: {observed_value} errors"
+    recommended_checks:
+      - "Scan all modules for U-codes (communication faults)"
+      - "Check CAN bus wiring for damage/corrosion"
+      - "Verify module power and ground connections"
+      - "Check for aftermarket device interference"
+    recommended_actions:
+      - "Repair CAN bus wiring"
+      - "Clean module connectors"
+      - "Remove aftermarket devices for testing"
+      - "Replace faulty module if isolated"
+    safety_notes:
+      - "Communication errors can cause unpredictable behavior"
+      - "Multiple U-codes often indicate bus fault, not module failure"
+    source: "generic_obd"
+    dtc_hints: ["U0001", "U0002", "U0100", "U0101", "U0121", "U0140", "U0155", "U0401", "U0402"]
+    cooldown_seconds: 300
+
+  # Composite Rule - Electrical System Failure
+  - rule_id: "RULE_ELECTRICAL_SYSTEM_FAILURE"
+    name: "Electrical System Failure"
+    description: "Composite rule detecting electrical system failure from multiple indicators"
+    category: "electrical"
+    rule_type: "composite"
+    enabled: true
+    version: "1.0"
+    severity: "critical"
+    priority: 1
+    confidence: 0.9
+    referenced_rule_ids:
+      - "RULE_BATTERY_VOLTAGE_LOW_RUNNING"
+      - "RULE_BATTERY_VOLTAGE_HIGH"
+      - "RULE_ALTERNATOR_FAILURE_LOAD"
+      - "RULE_COMMUNICATION_ERRORS"
+    composite_logic: "or"
+    explanation_template: "Multiple electrical system indicators triggered: {triggered_rules}"
+    recommended_checks:
+      - "Complete charging system test"
+      - "Load test battery"
+      - "Test alternator output at various RPMs"
+      - "Scan all modules for communication codes"
+      - "Check main power distribution"
+    recommended_actions:
+      - "Replace alternator if failed"
+      - "Replace battery if failed"
+      - "Repair wiring harness faults"
+      - "Replace faulty control modules"
+    safety_notes:
+      - "Electrical failure can cause sudden stall"
+      - "Multiple system failures suggest common power/ground issue"
+      - "Do not drive with known charging failure"
+    source: "hyundai_specific"
+    dtc_hints: ["P0562", "P0563", "P0620", "P0621", "P0622", "U0001", "U0100"]
+    cooldown_seconds: 600

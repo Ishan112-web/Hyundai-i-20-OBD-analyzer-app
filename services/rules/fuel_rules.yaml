@@ -1,0 +1,267 @@
+# Fuel System Rules
+# Detects lean/rich conditions, fuel trim issues, and fuel delivery problems
+
+rules:
+  # Correlation Rule - Lean Condition Under Load
+  - rule_id: "RULE_LEAN_UNDER_LOAD"
+    name: "Lean Fuel Condition Under Load"
+    description: "Detects lean air-fuel ratio during high engine load"
+    category: "fuel"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.85
+    conditions:
+      - sensor_name: "engine_load_pct"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 70.0
+        condition_group: "high_load"
+      - sensor_name: "short_term_fuel_trim_b1"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 15.0
+        condition_group: "lean_condition"
+      - sensor_name: "long_term_fuel_trim_b1"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 10.0
+        condition_group: "lean_condition"
+    explanation_template: "Engine running lean (STFT: {short_term_fuel_trim_b1}%, LTFT: {long_term_fuel_trim_b1}%) under high load ({engine_load_pct}%)"
+    recommended_checks:
+      - "Check for vacuum leaks (intake manifold, hoses, PCV)"
+      - "Inspect MAF sensor for contamination"
+      - "Check fuel pressure and delivery"
+      - "Verify injector operation"
+      - "Check for exhaust leaks before O2 sensor"
+    recommended_actions:
+      - "Clean or replace MAF sensor"
+      - "Replace fuel filter"
+      - "Check fuel pump pressure"
+      - "Repair vacuum leaks"
+      - "Clean or replace injectors"
+    safety_notes:
+      - "Lean condition can cause engine damage from detonation"
+      - "May cause misfire and catalytic converter damage"
+      - "Reduced power and poor fuel economy"
+    source: "generic_obd"
+    dtc_hints: ["P0171", "P0174", "P0101", "P0102"]
+    cooldown_seconds: 300
+
+  # Correlation Rule - Rich Condition
+  - rule_id: "RULE_RICH_CONDITION"
+    name: "Rich Fuel Condition"
+    description: "Detects rich air-fuel ratio indicated by negative fuel trims"
+    category: "fuel"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.8
+    conditions:
+      - sensor_name: "short_term_fuel_trim_b1"
+        sensor_unit: "%"
+        operator: "less_than"
+        threshold: -15.0
+        condition_group: "rich_condition"
+      - sensor_name: "long_term_fuel_trim_b1"
+        sensor_unit: "%"
+        operator: "less_than"
+        threshold: -10.0
+        condition_group: "rich_condition"
+    explanation_template: "Engine running rich (STFT: {short_term_fuel_trim_b1}%, LTFT: {long_term_fuel_trim_b1}%)"
+    recommended_checks:
+      - "Check for leaking fuel injector(s)"
+      - "Inspect fuel pressure regulator"
+      - "Check MAF sensor reading accuracy"
+      - "Verify coolant temperature sensor"
+      - "Check for stuck open thermostat"
+    recommended_actions:
+      - "Replace leaking injector(s)"
+      - "Replace fuel pressure regulator"
+      - "Clean MAF sensor"
+      - "Replace coolant temp sensor if faulty"
+    safety_notes:
+      - "Rich condition wastes fuel and increases emissions"
+      - "Can foul spark plugs and damage catalytic converter"
+      - "May cause rough idle and poor performance"
+    source: "generic_obd"
+    dtc_hints: ["P0172", "P0175", "P0101", "P0118"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - Fuel Pressure Low
+  - rule_id: "RULE_FUEL_PRESSURE_LOW"
+    name: "Low Fuel Rail Pressure"
+    description: "Detects fuel rail pressure below specification"
+    category: "fuel"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 3
+    confidence: 0.85
+    conditions:
+      - sensor_name: "fuel_rail_pressure_kpa"
+        sensor_unit: "kPa"
+        operator: "less_than"
+        threshold: 300.0
+    explanation_template: "Fuel rail pressure only {observed_value} kPa, below minimum specification of {threshold} kPa"
+    recommended_checks:
+      - "Check fuel pump operation"
+      - "Inspect fuel filter for clogging"
+      - "Verify fuel pressure regulator"
+      - "Check for fuel line restrictions"
+    recommended_actions:
+      - "Replace fuel filter"
+      - "Test fuel pump pressure and volume"
+      - "Replace fuel pump if failed"
+      - "Check fuel pressure regulator"
+    safety_notes:
+      - "Low fuel pressure causes lean condition and power loss"
+      - "May cause engine stalling"
+    source: "generic_obd"
+    dtc_hints: ["P0087", "P0088", "P0191", "P0192"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - Fuel Pressure High
+  - rule_id: "RULE_FUEL_PRESSURE_HIGH"
+    name: "High Fuel Rail Pressure"
+    description: "Detects fuel rail pressure above specification"
+    category: "fuel"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 5
+    confidence: 0.8
+    conditions:
+      - sensor_name: "fuel_rail_pressure_kpa"
+        sensor_unit: "kPa"
+        operator: "greater_than"
+        threshold: 500.0
+    explanation_template: "Fuel rail pressure {observed_value} kPa exceeds maximum specification of {threshold} kPa"
+    recommended_checks:
+      - "Check fuel pressure regulator"
+      - "Verify fuel return line not restricted"
+      - "Check fuel pressure sensor accuracy"
+    recommended_actions:
+      - "Replace fuel pressure regulator"
+      - "Clear fuel return line restriction"
+      - "Replace fuel pressure sensor if faulty"
+    safety_notes:
+      - "High fuel pressure causes rich condition"
+      - "May damage fuel system components"
+    source: "generic_obd"
+    dtc_hints: ["P0088", "P0193"]
+    cooldown_seconds: 300
+
+  # Trend Rule - Fuel Trim Drift
+  - rule_id: "RULE_FUEL_TRIM_DRIFT"
+    name: "Fuel Trim Drift Over Time"
+    description: "Detects progressive fuel trim drift indicating developing issue"
+    category: "fuel"
+    rule_type: "trend"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 5
+    confidence: 0.7
+    conditions:
+      - sensor_name: "long_term_fuel_trim_b1"
+        sensor_unit: "%"
+        trend_operator: "rate_above"
+        trend_window_seconds: 300
+        min_samples: 10
+        max_gap_seconds: 60
+        rate_threshold: 0.5  # % per second (would be very high - more like 0.01%/sec over 5 min)
+    explanation_template: "Long-term fuel trim drifting at {rate}%/s over {trend_window_seconds}s window"
+    recommended_checks:
+      - "Monitor fuel trims over extended period"
+      - "Check for gradual vacuum leak development"
+      - "Monitor MAF sensor for contamination buildup"
+    recommended_actions:
+      - "Schedule fuel system inspection"
+      - "Clean MAF sensor proactively"
+      - "Check for developing vacuum leaks"
+    safety_notes:
+      - "Gradual drift indicates developing problem"
+      - "Early detection prevents breakdown"
+    source: "generic_obd"
+    dtc_hints: ["P0171", "P0172", "P0174", "P0175"]
+    cooldown_seconds: 600
+
+  # Correlation Rule - Misfire with Fuel Trim
+  - rule_id: "RULE_MISFIRE_FUEL_RELATED"
+    name: "Misfire with Fuel System Indicators"
+    description: "Detects misfire combined with fuel trim abnormalities"
+    category: "fuel"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.88
+    conditions:
+      - sensor_name: "misfire_count_total"
+        sensor_unit: "count"
+        operator: "greater_than"
+        threshold: 0
+        condition_group: "misfire"
+      - sensor_name: "short_term_fuel_trim_b1"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 10.0
+        condition_group: "fuel_issue"
+    explanation_template: "Misfire detected ({misfire_count_total} counts) with lean fuel condition (STFT: {short_term_fuel_trim_b1}%)"
+    recommended_checks:
+      - "Check fuel injector for cylinder with misfire"
+      - "Verify fuel pressure under load"
+      - "Inspect ignition system (plugs, coils)"
+      - "Check compression on affected cylinder"
+    recommended_actions:
+      - "Replace faulty injector"
+      - "Replace spark plugs and coils if needed"
+      - "Perform compression test"
+    safety_notes:
+      - "Fuel-related misfire can damage catalytic converter"
+      - "Do not continue driving with active misfire"
+    source: "generic_obd"
+    dtc_hints: ["P0300", "P0301", "P0302", "P0303", "P0304", "P0171", "P0174"]
+    cooldown_seconds: 180
+
+  # Composite Rule - Fuel System Failure
+  - rule_id: "RULE_FUEL_SYSTEM_FAILURE"
+    name: "Fuel System Failure"
+    description: "Composite rule detecting fuel system failure from multiple indicators"
+    category: "fuel"
+    rule_type: "composite"
+    enabled: true
+    version: "1.0"
+    severity: "critical"
+    priority: 1
+    confidence: 0.9
+    referenced_rule_ids:
+      - "RULE_LEAN_UNDER_LOAD"
+      - "RULE_RICH_CONDITION"
+      - "RULE_FUEL_PRESSURE_LOW"
+      - "RULE_MISFIRE_FUEL_RELATED"
+    composite_logic: "or"
+    explanation_template: "Multiple fuel system indicators triggered: {triggered_rules}"
+    recommended_checks:
+      - "Complete fuel system diagnosis"
+      - "Fuel pressure and volume test"
+      - "Injector balance test"
+      - "Check all fuel system components"
+    recommended_actions:
+      - "Repair all identified fuel system issues"
+      - "Replace fuel filter"
+      - "Clean or replace injectors as needed"
+    safety_notes:
+      - "Fuel system failure can cause stalling or no-start"
+      - "May cause engine damage if lean"
+    source: "generic_obd"
+    dtc_hints: ["P0171", "P0172", "P0174", "P0175", "P0087", "P0088", "P0191", "P0192", "P0300"]
+    cooldown_seconds: 600

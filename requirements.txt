@@ -1,0 +1,30 @@
+# i20 AI Garage - Python Dependencies
+# Core
+streamlit>=1.67.0
+plotly>=5.0.0
+pandas>=2.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# OBD-II
+obd>=0.7.0
+
+# Database (built-in sqlite3)
+# No additional package needed
+
+# Reporting (Phase 4)
+jinja2>=3.1.0
+reportlab>=4.0.0
+
+# Testing
+pytest>=7.0.0
+
+# Optional: OpenAI SDK for LM Studio (requests is sufficient)
+# openai>=1.0.0
+
+# Type hints
+typing-extensions>=4.0.0
+
+# Utilities
+pyserial>=3.5
+pillow>=9.0.0

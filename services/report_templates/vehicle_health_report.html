@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% set report_title = "Vehicle Health Report" %}
+
+{% block content %}
+<!-- Overall Conclusion -->
+<section class="report-section">
+    <h2 class="section-title">Overall Assessment</h2>
+    <div style="padding: 20px; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border);">
+        <div style="font-size: 1.1rem; font-weight: 500; line-height: 1.5;">{{ overall_conclusion }}</div>
+    </div>
+</section>
+
+<!-- Latest Diagnostic Summary -->
+{% if latest_diagnostic_summary %}
+<section class="report-section">
+    <h2 class="section-title">Latest Diagnostic Scan</h2>
+    <div class="kv-grid">
+        <div class="kv-item">
+            <div class="kv-label">Scan Time</div>
+            <div class="kv-value">{{ latest_diagnostic_summary.scan_time }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">DTC Count</div>
+            <div class="kv-value">{{ latest_diagnostic_summary.dtc_count }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Type</div>
+            <div class="kv-value">
+                <span class="data-source-badge {% if latest_diagnostic_summary.is_demo %}simulation{% else %}real{% endif %}">
+                    {% if latest_diagnostic_summary.is_demo %}Simulation{% else %}Real{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% if latest_diagnostic_summary.summary %}
+    <div class="mt-16">
+        <p style="padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">{{ latest_diagnostic_summary.summary }}</p>
+    </div>
+    {% endif %}
+</section>
+{% endif %}
+
+<!-- Current DTC Summary -->
+<section class="report-section">
+    <h2 class="section-title">Current DTC Status</h2>
+    {% if current_dtc_summary %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th>Severity</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dtc in current_dtc_summary %}
+                <tr>
+                    <td><strong>{{ dtc.code }}</strong></td>
+                    <td>{{ dtc.description }}</td>
+                    <td><span class="severity-badge severity-{{ dtc.severity.value.lower() }}">{{ dtc.severity.value }}</span></td>
+                    <td><span class="data-source-badge {{ dtc.data_source.value.lower() }}">{{ dtc.data_source.value }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-center" style="padding: 20px;">No active DTCs detected.</p>
+    {% endif %}
+</section>
+
+<!-- Latest Rule Engine Findings -->
+{% if latest_rule_findings %}
+<section class="report-section">
+    <h2 class="section-title">Latest Rule Engine Findings</h2>
+    <p class="section-subtitle">{{ latest_rule_findings|length }} active finding(s)</p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rule ID</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Severity</th>
+                    <th>Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for finding in latest_rule_findings %}
+                <tr>
+                    <td><strong>{{ finding.rule_id }}</strong></td>
+                    <td>{{ finding.rule_name }}</td>
+                    <td>{{ finding.category }}</td>
+                    <td><span class="severity-badge severity-{{ finding.severity.value.lower() }}">{{ finding.severity.value }}</span></td>
+                    <td>{{ "%.0f"|format(finding.confidence * 100) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Latest AI Diagnosis -->
+{% if latest_ai_diagnosis %}
+<section class="report-section">
+    <h2 class="section-title">Latest AI Diagnosis</h2>
+    <div class="kv-grid">
+        <div class="kv-item">
+            <div class="kv-label">Diagnosis ID</div>
+            <div class="kv-value">{{ latest_ai_diagnosis.diagnosis_id }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Timestamp</div>
+            <div class="kv-value">{{ latest_ai_diagnosis.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Confidence</div>
+            <div class="kv-value">{{ "%.0f"|format(latest_ai_diagnosis.confidence * 100) }}%</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Severity</div>
+            <div class="kv-value"><span class="severity-badge severity-{{ latest_ai_diagnosis.severity.value.lower() }}">{{ latest_ai_diagnosis.severity.value }}</span></div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Data Quality</div>
+            <div class="kv-value">{{ latest_ai_diagnosis.data_quality }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Source</div>
+            <div class="kv-value"><span class="data-source-badge {{ latest_ai_diagnosis.data_source.value.lower() }}">{{ latest_ai_diagnosis.data_source.value }}</span></div>
+        </div>
+    </div>
+    {% if latest_ai_diagnosis.summary %}
+    <div class="mt-16">
+        <p style="padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">{{ latest_ai_diagnosis.summary }}</p>
+    </div>
+    {% endif %}
+    {% if latest_ai_diagnosis.estimated_cost_inr %}
+    <div class="mt-16">
+        <div style="padding: 12px; background: rgba(155, 89, 182, 0.1); border: 1px solid var(--accent-purple); border-radius: 8px;">
+            <strong style="color: var(--accent-purple);">Estimated Repair Cost: {{ latest_ai_diagnosis.estimated_cost_inr }}</strong>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Estimate only - not a verified quotation.</div>
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% endif %}
+
+<!-- Sensor Availability -->
+<section class="report-section">
+    <h2 class="section-title">Sensor Availability</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sensor</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sensor, available in sensor_availability.items() %}
+                <tr>
+                    <td>{{ sensor }}</td>
+                    <td>
+                        <span class="status-badge {% if available %}status-normal{% else %}status-attention{% endif %}">
+                            {% if available %}Available{% else %}Unavailable{% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- Telemetry Summary -->
+{% if telemetry_summary %}
+<section class="report-section">
+    <h2 class="section-title">Current Telemetry Snapshot</h2>
+    <div class="kv-grid">
+        {% if telemetry_summary.rpm is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Engine RPM</div>
+            <div class="kv-value">{{ "%.0f"|format(telemetry_summary.rpm) }} RPM</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.speed_kmh is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Vehicle Speed</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.speed_kmh) }} km/h</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.coolant_temp_c is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Coolant Temperature</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.coolant_temp_c) }} °C</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.throttle_pos_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Throttle Position</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.throttle_pos_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.engine_load_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Engine Load</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.engine_load_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.stft_b1_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">STFT (B1)</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.stft_b1_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.ltft_b1_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">LTFT (B1)</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.ltft_b1_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.voltage_v is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Battery Voltage</div>
+            <div class="kv-value">{{ "%.2f"|format(telemetry_summary.voltage_v) }} V</div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="mt-16" style="font-size: 0.8rem; color: var(--text-secondary);">
+        <span class="data-source-badge {{ telemetry_summary.data_source.value.lower() }}">{{ telemetry_summary.data_source.value }}</span>
+        • Records: {{ telemetry_summary.record_count }}
+        {% if telemetry_summary.timestamp %} • Last: {{ telemetry_summary.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}{% endif %}
+    </div>
+</section>
+{% endif %}
+
+<!-- Component Statuses -->
+{% if component_statuses %}
+<section class="report-section">
+    <h2 class="section-title">Component Status Summary</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Status</th>
+                    <th>Description</th>
+                    <th>Evidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comp in component_statuses %}
+                <tr>
+                    <td><strong>{{ comp.name }}</strong></td>
+                    <td>
+                        <span class="status-badge
+                            {% if comp.status == 'normal' %}status-normal
+                            {% elif comp.status == 'attention_recommended' %}status-attention
+                            {% elif comp.status == 'critical_finding' %}status-critical
+                            {% elif comp.status == 'insufficient_data' %}status-insufficient
+                            {% else %}status-not-evaluated{% endif %}">
+                            {{ comp.status.replace('_', ' ').title() }}
+                        </span>
+                    </td>
+                    <td>{{ comp.description }}</td>
+                    <td>{{ comp.evidence | join(', ') if comp.evidence else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Maintenance History -->
+{% if maintenance_history %}
+<section class="report-section">
+    <h2 class="section-title">Maintenance History</h2>
+    <p class="section-subtitle">{{ maintenance_history|length }} service record(s)</p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Service Type</th>
+                    <th>Description</th>
+                    <th>Odometer</th>
+                    <th>Cost (INR)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in maintenance_history[:20] %}
+                <tr>
+                    <td>{{ record.service_date }}</td>
+                    <td>{{ record.service_type }}</td>
+                    <td>{{ record.description or '—' }}</td>
+                    <td>{{ record.odometer_km }} km</td>
+                    <td>{{ "₹{:,.0f}".format(record.cost) if record.cost else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if maintenance_history|length > 20 %}
+    <p class="text-muted" style="margin-top: 8px; font-size: 0.85rem;">Showing 20 of {{ maintenance_history|length }} records.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+<!-- Upcoming Maintenance -->
+{% if upcoming_maintenance %}
+<section class="report-section">
+    <h2 class="section-title">Upcoming Maintenance</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service Type</th>
+                    <th>Due Date</th>
+                    <th>Due Odometer</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in upcoming_maintenance %}
+                <tr>
+                    <td>{{ item.service_type }}</td>
+                    <td>{{ item.next_service_date or '—' }}</td>
+                    <td>{{ item.next_service_km if item.next_service_km else '—' }} km</td>
+                    <td>{{ item.description or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Overdue Maintenance -->
+{% if overdue_maintenance %}
+<section class="report-section">
+    <h2 class="section-title">Overdue Maintenance</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service Type</th>
+                    <th>Due Date</th>
+                    <th>Due Odometer</th>
+                    <th>Current Odometer</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in overdue_maintenance %}
+                <tr>
+                    <td><strong>{{ item.service_type }}</strong></td>
+                    <td>{{ item.next_service_date or '—' }}</td>
+                    <td>{{ item.next_service_km if item.next_service_km else '—' }} km</td>
+                    <td>{{ vehicle_info.odometer_km or 'Unknown' }} km</td>
+                    <td>{{ item.description or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Safety Observations -->
+{% if safety_observations %}
+<section class="report-section">
+    <h2 class="section-title">Safety Observations</h2>
+    <ul class="bullet-list">
+        {% for obs in safety_observations %}
+        <li class="critical">{{ obs }}</li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+{% endblock %}

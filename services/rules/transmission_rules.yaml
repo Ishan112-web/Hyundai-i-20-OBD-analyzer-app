@@ -1,0 +1,196 @@
+# Transmission Rules
+# Detects transmission issues, shift problems, and temperature concerns
+
+rules:
+  # Threshold Rule - Transmission Fluid Overheat
+  - rule_id: "RULE_TRANSMISSION_OVERHEAT"
+    name: "Transmission Fluid Overheat"
+    description: "Detects transmission fluid temperature exceeding safe limits"
+    category: "transmission"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.85
+    conditions:
+      - sensor_name: "transmission_temp_c"
+        sensor_unit: "°C"
+        operator: "greater_than"
+        threshold: 110.0
+    explanation_template: "Transmission fluid temperature reached {observed_value}°C, exceeding safe limit of {threshold}°C"
+    recommended_checks:
+      - "Check transmission fluid level and condition"
+      - "Inspect transmission cooler for blockages"
+      - "Verify transmission cooler lines"
+      - "Check for heavy towing/load conditions"
+    recommended_actions:
+      - "Allow transmission to cool"
+      - "Change transmission fluid if dark/burnt"
+      - "Flush transmission cooler"
+      - "Install auxiliary cooler if towing"
+    safety_notes:
+      - "Overheating destroys transmission fluid and clutches"
+      - "Continued operation causes permanent damage"
+    source: "generic_obd"
+    dtc_hints: ["P0218", "P0711", "P0712", "P0713"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - Transmission Slip Detected
+  - rule_id: "RULE_TRANSMISSION_SLIP"
+    name: "Transmission Slip Detected"
+    description: "Detects RPM flare indicating transmission slip"
+    category: "transmission"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.8
+    conditions:
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "greater_than"
+        threshold: 3000
+        condition_group: "high_rpm"
+      - sensor_name: "vehicle_speed_kmh"
+        sensor_unit: "km/h"
+        operator: "less_than"
+        threshold: 60
+        condition_group: "low_speed"
+      - sensor_name: "throttle_position_pct"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 30
+        condition_group: "under_load"
+    explanation_template: "Possible transmission slip: RPM {engine_rpm} at only {vehicle_speed_kmh} km/h with {throttle_position_pct}% throttle"
+    recommended_checks:
+      - "Check transmission fluid level and condition"
+      - "Scan for transmission DTCs"
+      - "Test drive to verify slip condition"
+      - "Check for torque converter clutch issues"
+    recommended_actions:
+      - "Change transmission fluid and filter"
+      - "Replace torque converter if slipping"
+      - "Overhaul transmission if internal damage"
+    safety_notes:
+      - "Transmission slip generates heat rapidly"
+      - "Do not continue driving with confirmed slip"
+    source: "generic_obd"
+    dtc_hints: ["P0730", "P0731", "P0732", "P0733", "P0734", "P0741", "P0742"]
+    cooldown_seconds: 300
+
+  # Correlation Rule - Harsh Shifts
+  - rule_id: "RULE_HARSH_SHIFTS"
+    name: "Harsh Transmission Shifts"
+    description: "Detects abnormally harsh gear changes"
+    category: "transmission"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.75
+    conditions:
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "greater_than"
+        threshold: 2500
+        condition_group: "shift_point"
+      - sensor_name: "throttle_position_pct"
+        sensor_unit: "%"
+        operator: "between"
+        threshold_min: 10.0
+        threshold_max: 50.0
+        condition_group: "normal_throttle"
+      - sensor_name: "transmission_gear"
+        sensor_unit: "gear"
+        operator: "not_equal"
+        threshold: 0
+        condition_group: "in_gear"
+    explanation_template: "Harsh shift detected at {engine_rpm} RPM with {throttle_position_pct}% throttle in gear {transmission_gear}"
+    recommended_checks:
+      - "Check transmission fluid level and condition"
+      - "Scan for adaptive shift learning codes"
+      - "Check for TPS (throttle position sensor) issues"
+      - "Verify transmission mount condition"
+    recommended_actions:
+      - "Reset transmission adaptive learning"
+      - "Change transmission fluid"
+      - "Replace TPS if faulty"
+      - "Replace transmission mounts if worn"
+    safety_notes:
+      - "Harsh shifts accelerate component wear"
+      - "May indicate pressure control issues"
+    source: "generic_obd"
+    dtc_hints: ["P0700", "P0715", "P0720", "P0750", "P0755", "P0760", "P0765"]
+    cooldown_seconds: 300
+
+  # Trend Rule - Transmission Temp Rising
+  - rule_id: "RULE_TRANSMISSION_TEMP_RISING"
+    name: "Transmission Temperature Rising Rapidly"
+    description: "Detects rapid transmission temperature increase"
+    category: "transmission"
+    rule_type: "trend"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 5
+    confidence: 0.7
+    conditions:
+      - sensor_name: "transmission_temp_c"
+        sensor_unit: "°C"
+        trend_operator: "rate_above"
+        trend_window_seconds: 60
+        min_samples: 5
+        max_gap_seconds: 15
+        rate_threshold: 0.5  # °C per second
+    explanation_template: "Transmission temperature rising at {rate}°C/s, exceeding threshold of {rate_threshold}°C/s"
+    recommended_checks:
+      - "Check transmission fluid level"
+      - "Inspect transmission cooler airflow"
+      - "Verify transmission not in limp mode"
+      - "Check for heavy load/towing"
+    recommended_actions:
+      - "Reduce load and allow cooling"
+      - "Change transmission fluid if overdue"
+      - "Clean transmission cooler fins"
+      - "Install auxiliary cooler"
+    safety_notes:
+      - "Rapid temp rise indicates cooling issue or heavy slip"
+    source: "generic_obd"
+    dtc_hints: ["P0218", "P0711"]
+    cooldown_seconds: 180
+
+  # Composite Rule - Transmission Failure
+  - rule_id: "RULE_TRANSMISSION_FAILURE"
+    name: "Transmission Failure"
+    description: "Composite rule detecting transmission failure from multiple indicators"
+    category: "transmission"
+    rule_type: "composite"
+    enabled: true
+    version: "1.0"
+    severity: "critical"
+    priority: 1
+    confidence: 0.9
+    referenced_rule_ids:
+      - "RULE_TRANSMISSION_OVERHEAT"
+      - "RULE_TRANSMISSION_SLIP"
+      - "RULE_HARSH_SHIFTS"
+    composite_logic: "or"
+    explanation_template: "Multiple transmission indicators triggered: {triggered_rules}"
+    recommended_checks:
+      - "Complete transmission diagnosis"
+      - "Check all transmission DTCs"
+      - "Perform line pressure test"
+      - "Inspect transmission fluid condition"
+    recommended_actions:
+      - "Repair all identified transmission issues"
+      - "Change fluid and filter"
+      - "Overhaul or replace transmission if needed"
+    safety_notes:
+      - "Transmission failure can leave vehicle stranded"
+      - "Continued driving causes more damage"
+    source: "generic_obd"
+    dtc_hints: ["P0700", "P0715", "P0720", "P0730", "P0741", "P0218"]
+    cooldown_seconds: 600

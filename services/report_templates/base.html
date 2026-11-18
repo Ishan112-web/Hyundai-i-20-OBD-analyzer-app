@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ report_title }} - i20 AI Garage</title>
+    <style>
+        :root {
+            --bg-primary: #1a1d21;
+            --bg-secondary: #23272e;
+            --bg-card: #2a2e36;
+            --border: #3a3f4a;
+            --text-primary: #e8eaed;
+            --text-secondary: #9aa3ad;
+            --accent-blue: #00b4d8;
+            --accent-green: #2ecc71;
+            --accent-amber: #f39c12;
+            --accent-red: #e74c3c;
+            --accent-purple: #9b59b6;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-primary: #ffffff;
+                --bg-secondary: #f5f5f5;
+                --bg-card: #ffffff;
+                --border: #ddd;
+                --text-primary: #1a1a1a;
+                --text-secondary: #666;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .report-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Header */
+        .report-header {
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+            border-bottom: 2px solid var(--accent-blue);
+            padding: 30px;
+        }
+
+        .report-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .report-subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .report-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-label {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.7rem;
+        }
+
+        .data-source-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-source-badge.real {
+            background: rgba(46, 204, 113, 0.2);
+            color: var(--accent-green);
+        }
+
+        .data-source-badge.simulation {
+            background: rgba(243, 156, 18, 0.2);
+            color: var(--accent-amber);
+        }
+
+        .data-source-badge.mixed {
+            background: rgba(155, 89, 182, 0.2);
+            color: var(--accent-purple);
+        }
+
+        .data-source-badge.unknown {
+            background: rgba(154, 163, 173, 0.2);
+            color: var(--text-secondary);
+        }
+
+        /* Section */
+        .report-section {
+            padding: 24px 30px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .report-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: "";
+            width: 4px;
+            height: 24px;
+            background: var(--accent-blue);
+            border-radius: 2px;
+        }
+
+        .section-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover td {
+            background: var(--bg-secondary);
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .severity-critical { background: rgba(231, 76, 60, 0.2); color: var(--accent-red); }
+        .severity-major { background: rgba(243, 156, 18, 0.2); color: var(--accent-amber); }
+        .severity-minor { background: rgba(52, 152, 219, 0.2); color: #3498db; }
+        .severity-info { background: rgba(155, 89, 182, 0.2); color: var(--accent-purple); }
+        .severity-unknown { background: rgba(154, 163, 173, 0.2); color: var(--text-secondary); }
+        .severity-informational { background: rgba(52, 152, 219, 0.2); color: #3498db; }
+        .severity-low { background: rgba(46, 204, 113, 0.2); color: var(--accent-green); }
+        .severity-medium { background: rgba(243, 156, 18, 0.2); color: var(--accent-amber); }
+        .severity-high { background: rgba(231, 76, 60, 0.15); color: var(--accent-red); }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-normal { background: rgba(46, 204, 113, 0.2); color: var(--accent-green); }
+        .status-attention { background: rgba(243, 156, 18, 0.2); color: var(--accent-amber); }
+        .status-critical { background: rgba(231, 76, 60, 0.2); color: var(--accent-red); }
+        .status-insufficient { background: rgba(154, 163, 173, 0.2); color: var(--text-secondary); }
+        .status-not-evaluated { background: rgba(154, 163, 173, 0.15); color: var(--text-secondary); }
+
+        /* Lists */
+        .bullet-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .bullet-list li {
+            padding: 8px 0 8px 24px;
+            position: relative;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .bullet-list li:last-child {
+            border-bottom: none;
+        }
+
+        .bullet-list li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        .bullet-list li.warning::before {
+            color: var(--accent-amber);
+        }
+
+        .bullet-list li.critical::before {
+            color: var(--accent-red);
+        }
+
+        .bullet-list li.success::before {
+            color: var(--accent-green);
+        }
+
+        /* Recommendation categories */
+        .recommendation-category {
+            margin-bottom: 16px;
+        }
+
+        .recommendation-category-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rec-immediate .recommendation-category-title { color: var(--accent-red); }
+        .rec-verification .recommendation-category-title { color: var(--accent-amber); }
+        .rec-routine .recommendation-category-title { color: var(--accent-blue); }
+        .rec-monitoring .recommendation-category-title { color: var(--text-secondary); }
+
+        /* Key-value pairs */
+        .kv-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+        }
+
+        .kv-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+
+        .kv-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .kv-value {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* Provenance */
+        .provenance-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .provenance-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .provenance-source {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .provenance-details {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Limitations */
+        .limitations-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .limitations-list li {
+            padding: 10px 12px;
+            background: rgba(243, 156, 18, 0.1);
+            border: 1px solid rgba(243, 156, 18, 0.3);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        .report-footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 20px 30px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .footer-disclaimer {
+            margin-top: 8px;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .report-container {
+                box-shadow: none;
+                border: none;
+                border-radius: 0;
+            }
+            .report-header {
+                background: none;
+                border-bottom: 2px solid #00b4d8;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .report-section {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            table {
+                page-break-inside: auto;
+            }
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            thead {
+                display: table-header-group;
+            }
+        }
+
+        /* Utility */
+        .text-muted { color: var(--text-secondary); }
+        .text-center { text-align: center; }
+        .mt-16 { margin-top: 16px; }
+        .mb-16 { margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <!-- Header -->
+        <header class="report-header">
+            <div class="report-title">{{ report_title }}</div>
+            <div class="report-subtitle">i20 AI Garage - Professional Automotive Report</div>
+            <div class="report-meta">
+                <div class="meta-item">
+                    <span class="meta-label">Generated:</span>
+                    <span>{{ generated_at.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Report ID:</span>
+                    <span>{{ report_id }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Format:</span>
+                    <span>{{ format.upper() }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Data Source:</span>
+                    <span class="data-source-badge {{ data_source.value.lower() }}">{{ data_source.value }}</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Vehicle Info -->
+        <section class="report-section">
+            <h2 class="section-title">Vehicle Information</h2>
+            <div class="kv-grid">
+                <div class="kv-item">
+                    <div class="kv-label">Make / Model</div>
+                    <div class="kv-value">{{ vehicle_info.make }} {{ vehicle_info.model }}</div>
+                </div>
+                <div class="kv-item">
+                    <div class="kv-label">Year</div>
+                    <div class="kv-value">{{ vehicle_info.year }}</div>
+                </div>
+                <div class="kv-item">
+                    <div class="kv-label">Engine</div>
+                    <div class="kv-value">{{ vehicle_info.engine }}</div>
+                </div>
+                <div class="kv-item">
+                    <div class="kv-label">Transmission</div>
+                    <div class="kv-value">{{ vehicle_info.transmission }}</div>
+                </div>
+                <div class="kv-item">
+                    <div class="kv-label">Fuel Type</div>
+                    <div class="kv-value">{{ vehicle_info.fuel_type }}</div>
+                </div>
+                <div class="kv-item">
+                    <div class="kv-label">Market</div>
+                    <div class="kv-value">{{ vehicle_info.market }}</div>
+                </div>
+                <div class="kv-item">
+                    <div class="kv-label">ECU Tuning</div>
+                    <div class="kv-value">{{ vehicle_info.ecu_tuning }}</div>
+                </div>
+                <div class="kv-item">
+                    <div class="kv-label">Diagnostic Mode</div>
+                    <div class="kv-value">{{ vehicle_info.diagnostic_mode }}</div>
+                </div>
+                {% if vehicle_info.vin %}
+                <div class="kv-item">
+                    <div class="kv-label">VIN</div>
+                    <div class="kv-value">{{ vehicle_info.vin }}</div>
+                </div>
+                {% endif %}
+                {% if vehicle_info.odometer_km %}
+                <div class="kv-item">
+                    <div class="kv-label">Odometer</div>
+                    <div class="kv-value">{{ vehicle_info.odometer_km }} km</div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        {% block content %}{% endblock %}
+
+        <!-- Data Provenance -->
+        {% if data_provenance %}
+        <section class="report-section">
+            <h2 class="section-title">Data Provenance</h2>
+            <p class="section-subtitle">Sources and lineage of data used in this report</p>
+            {% for prov in data_provenance %}
+            <div class="provenance-item">
+                <div class="provenance-header">
+                    <span class="provenance-source">{{ prov.description }}</span>
+                    <span class="data-source-badge {{ prov.source.value.lower() }}">{{ prov.source.value }}</span>
+                </div>
+                <div class="provenance-details">
+                    {% if prov.session_id %}Session: {{ prov.session_id }}{% endif %}
+                    {% if prov.diagnosis_id %}{% if prov.session_id %} • {% endif %}Diagnosis: {{ prov.diagnosis_id }}{% endif %}
+                    {% if prov.evaluation_id %}{% if prov.session_id or prov.diagnosis_id %} • {% endif %}Evaluation: {{ prov.evaluation_id }}{% endif %}
+                    {% if prov.record_count %}{% if prov.session_id or prov.diagnosis_id or prov.evaluation_id %} • {% endif %}Records: {{ prov.record_count }}{% endif %}
+                    {% if prov.date_range and prov.date_range.start %} • Period: {{ prov.date_range.start }} to {{ prov.date_range.end or 'present' }}{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <!-- Limitations -->
+        {% if limitations %}
+        <section class="report-section">
+            <h2 class="section-title">Report Limitations</h2>
+            <ul class="limitations-list">
+                {% for limitation in limitations %}
+                <li>{{ limitation }}</li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        <!-- Footer -->
+        <footer class="report-footer">
+            <div>i20 AI Garage v1.0.0 - Professional Automotive Diagnostic Platform</div>
+            <div>Hyundai i20 Asta 2023 - 1.2L Kappa Petrol Manual (India)</div>
+            <div class="footer-disclaimer">
+                This report is for diagnostic assistance purposes only. Always consult a qualified mechanic for vehicle repairs.
+                Simulation data is not real vehicle data. AI outputs are advisory and require professional verification.
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

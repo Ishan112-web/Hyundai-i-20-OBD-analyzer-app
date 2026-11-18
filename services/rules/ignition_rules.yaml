@@ -1,0 +1,221 @@
+# Ignition System Rules
+# Detects misfire, ignition timing issues, knock sensor activity, and coil failures
+
+rules:
+  # Threshold Rule - Misfire Detected
+  - rule_id: "RULE_MISFIRE_DETECTED"
+    name: "Engine Misfire Detected"
+    description: "Detects when engine misfire count exceeds zero"
+    category: "ignition"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.9
+    conditions:
+      - sensor_name: "misfire_count_total"
+        sensor_unit: "count"
+        operator: "greater_than"
+        threshold: 0
+    explanation_template: "Engine misfire detected: {observed_value} total misfire counts"
+    recommended_checks:
+      - "Read cylinder-specific misfire counters (misfire_cyl_1 through misfire_cyl_4)"
+      - "Inspect spark plugs for wear or fouling"
+      - "Check ignition coil resistance and operation"
+      - "Verify fuel injector operation on affected cylinder(s)"
+      - "Check compression on misfiring cylinder(s)"
+    recommended_actions:
+      - "Replace spark plugs if worn or fouled"
+      - "Replace faulty ignition coil(s)"
+      - "Clean or replace fuel injector(s)"
+      - "Perform compression test if mechanical issue suspected"
+    safety_notes:
+      - "Active misfire can damage catalytic converter"
+      - "Do not continue driving with flashing check engine light"
+      - "Misfire may cause rough running and power loss"
+    source: "hyundai_specific"
+    dtc_hints: ["P0300", "P0301", "P0302", "P0303", "P0304"]
+    cooldown_seconds: 180
+
+  # Correlation Rule - Cylinder-Specific Misfire with Ignition Timing
+  - rule_id: "RULE_MISFIRE_CYLINDER_SPECIFIC"
+    name: "Cylinder-Specific Misfire with Ignition Timing Correlation"
+    description: "Detects misfire on specific cylinder correlated with ignition timing data"
+    category: "ignition"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.88
+    conditions:
+      - sensor_name: "misfire_cyl_1"
+        sensor_unit: "count"
+        operator: "greater_than"
+        threshold: 0
+        condition_group: "misfire"
+      - sensor_name: "misfire_cyl_2"
+        sensor_unit: "count"
+        operator: "greater_than"
+        threshold: 0
+        condition_group: "misfire"
+      - sensor_name: "misfire_cyl_3"
+        sensor_unit: "count"
+        operator: "greater_than"
+        threshold: 0
+        condition_group: "misfire"
+      - sensor_name: "misfire_cyl_4"
+        sensor_unit: "count"
+        operator: "greater_than"
+        threshold: 0
+        condition_group: "misfire"
+      - sensor_name: "ignition_timing_deg"
+        sensor_unit: "degrees"
+        operator: "not_equal"
+        threshold: 0
+        condition_group: "timing_data"
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "greater_than"
+        threshold: 500
+        condition_group: "engine_running"
+    explanation_template: "Cylinder-specific misfire detected (Cyl1: {misfire_cyl_1}, Cyl2: {misfire_cyl_2}, Cyl3: {misfire_cyl_3}, Cyl4: {misfire_cyl_4}) with ignition timing at {ignition_timing_deg}° at {engine_rpm} RPM"
+    recommended_checks:
+      - "Identify which cylinder(s) have misfire counts"
+      - "Compare ignition timing advance/retard against specification"
+      - "Check spark plug condition on affected cylinder(s)"
+      - "Test ignition coil primary/secondary resistance on affected cylinder(s)"
+      - "Verify injector pulse width on affected cylinder(s)"
+      - "Check for vacuum leak near affected cylinder intake runner"
+    recommended_actions:
+      - "Replace spark plug on misfiring cylinder"
+      - "Replace ignition coil on misfiring cylinder"
+      - "Swap coils between cylinders to confirm coil fault"
+      - "Clean or replace fuel injector on affected cylinder"
+      - "Repair vacuum leak if found"
+    safety_notes:
+      - "Cylinder-specific misfire points to ignition or fuel delivery issue on that cylinder"
+      - "Ignition timing outside spec can cause misfire"
+      - "Continued operation damages catalytic converter"
+    source: "hyundai_specific"
+    dtc_hints: ["P0301", "P0302", "P0303", "P0304", "P0016", "P0017"]
+    cooldown_seconds: 180
+
+  # Threshold Rule - Excessive Ignition Timing Retard
+  - rule_id: "RULE_IGNITION_TIMING_RETARD"
+    name: "Excessive Ignition Timing Retard"
+    description: "Detects when ignition timing is retarded beyond normal operating range"
+    category: "ignition"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.8
+    conditions:
+      - sensor_name: "ignition_timing_deg"
+        sensor_unit: "degrees"
+        operator: "less_than"
+        threshold: -10.0
+    explanation_template: "Ignition timing retarded to {observed_value}° (threshold: {threshold}°) - excessive retard detected"
+    recommended_checks:
+      - "Check knock sensor operation and wiring"
+      - "Verify fuel quality (low octane causes retard)"
+      - "Check for carbon buildup in combustion chambers"
+      - "Verify EGR valve operation (stuck open causes retard)"
+      - "Check coolant temperature sensor accuracy"
+      - "Scan for pending knock sensor codes"
+    recommended_actions:
+      - "Use recommended fuel octane rating (91+ RON for i20)"
+      - "Clean carbon deposits (intake valves, combustion chambers)"
+      - "Replace knock sensor if faulty"
+      - "Repair/replace EGR valve if stuck"
+      - "Replace coolant temp sensor if reading incorrectly"
+    safety_notes:
+      - "Excessive retard reduces power and fuel economy"
+      - "May indicate knock sensor detecting false knock"
+      - "Chronic retard can indicate mechanical issues"
+    source: "hyundai_specific"
+    dtc_hints: ["P0325", "P0326", "P0327", "P0328", "P0330", "P0331", "P0332", "P0333", "P0401", "P0402"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - Knock Sensor Active
+  - rule_id: "RULE_KNOCK_SENSOR_ACTIVE"
+    name: "Knock Sensor Activity Detected"
+    description: "Detects knock sensor activity indicating engine knock/detonation"
+    category: "ignition"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 3
+    confidence: 0.85
+    conditions:
+      - sensor_name: "knock_sensor_count"
+        sensor_unit: "count"
+        operator: "greater_than"
+        threshold: 5
+    explanation_template: "Knock sensor detected {observed_value} knock events (threshold: {threshold}) - engine knock/detonation occurring"
+    recommended_checks:
+      - "Verify fuel octane rating (use 91+ RON for Hyundai i20)"
+      - "Check ignition timing - excessive advance causes knock"
+      - "Inspect for carbon buildup on pistons/valves"
+      - "Check EGR system operation (stuck closed increases knock)"
+      - "Verify knock sensor mounting torque and wiring"
+      - "Check for engine mechanical issues (bearing wear, piston slap)"
+    recommended_actions:
+      - "Fill with correct octane fuel (91+ RON)"
+      - "Clean carbon deposits from combustion chambers"
+      - "Repair/replace EGR valve if stuck closed"
+      - "Replace knock sensor if faulty or loose"
+      - "Retard ignition timing if adjustable (ECU controlled)"
+      - "Perform engine mechanical inspection if knock persists"
+    safety_notes:
+      - "Engine knock can cause severe piston/rod damage"
+      - "Do not ignore persistent knock sensor activity"
+      - "Low octane fuel is most common cause"
+      - "Knock at high load/RPM is most damaging"
+    source: "hyundai_specific"
+    dtc_hints: ["P0325", "P0326", "P0327", "P0328", "P0330", "P0331", "P0332", "P0333"]
+    cooldown_seconds: 180
+
+  # Composite Rule - Ignition Coil Failure
+  - rule_id: "RULE_IGNITION_COIL_FAILURE"
+    name: "Ignition Coil Failure"
+    description: "Composite rule detecting ignition coil failure from misfire and ignition timing patterns"
+    category: "ignition"
+    rule_type: "composite"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.9
+    referenced_rule_ids:
+      - "RULE_MISFIRE_DETECTED"
+      - "RULE_MISFIRE_CYLINDER_SPECIFIC"
+      - "RULE_IGNITION_TIMING_RETARD"
+      - "RULE_KNOCK_SENSOR_ACTIVE"
+    composite_logic: "or"
+    explanation_template: "Multiple ignition system indicators triggered suggesting coil failure: {triggered_rules}"
+    recommended_checks:
+      - "Identify which cylinder(s) misfiring using cylinder-specific counters"
+      - "Swap coils between cylinders to confirm coil follows misfire"
+      - "Test coil primary resistance (should be ~0.5-1.5 ohms)"
+      - "Test coil secondary resistance (should be ~8-15k ohms)"
+      - "Check coil connector and wiring for corrosion/damage"
+      - "Verify coil ground connection"
+      - "Check for coil boot/cracked insulator"
+    recommended_actions:
+      - "Replace faulty ignition coil(s)"
+      - "Replace all coils as set if high mileage (>100k km)"
+      - "Replace spark plugs when replacing coils"
+      - "Repair/replace coil connector if damaged"
+      - "Apply dielectric grease to coil boots"
+    safety_notes:
+      - "Failed coil causes misfire and catalytic converter damage"
+      - "Coil failure often follows plug replacement (increased voltage demand)"
+      - "Replace in sets for balanced performance"
+    source: "hyundai_specific"
+    dtc_hints: ["P0300", "P0301", "P0302", "P0303", "P0304", "P0351", "P0352", "P0353", "P0354"]
+    cooldown_seconds: 300

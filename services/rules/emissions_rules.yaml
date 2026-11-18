@@ -1,0 +1,238 @@
+# Emissions System Rules
+# Detects O2 sensor degradation, catalytic converter efficiency, EVAP leaks, EGR issues, and composite emissions failures
+
+rules:
+  # Threshold Rule - O2 Sensor Slow Response
+  - rule_id: "RULE_O2_SENSOR_SLOW_RESPONSE"
+    name: "O2 Sensor Slow Response (Bank 1 Sensor 1)"
+    description: "Detects upstream O2 sensor voltage switching frequency below minimum threshold indicating sensor aging or contamination"
+    category: "emissions"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.8
+    conditions:
+      - sensor_name: "o2_sensor_voltage_b1s1"
+        sensor_unit: "V"
+        operator: "less_than"
+        threshold: 0.5  # Hz - minimum switching frequency for healthy sensor
+        evaluation_window_seconds: 60
+    explanation_template: "Upstream O2 sensor (B1S1) switching frequency only {observed_value} Hz, below minimum of {threshold} Hz - sensor may be aged or contaminated"
+    recommended_checks:
+      - "Inspect O2 sensor for carbon buildup or contamination"
+      - "Check for exhaust leaks upstream of sensor"
+      - "Verify fuel quality and check for oil consumption"
+      - "Monitor sensor voltage waveform for lazy switching"
+    recommended_actions:
+      - "Replace upstream O2 sensor (Bank 1 Sensor 1)"
+      - "Check and repair any exhaust leaks"
+      - "Use fuel system cleaner if carbon fouling suspected"
+    safety_notes:
+      - "Slow O2 sensor reduces fuel economy and increases emissions"
+      - "May cause catalytic converter damage over time"
+      - "Can trigger P0133 (O2 sensor circuit slow response)"
+    source: "hyundai_specific"
+    dtc_hints: ["P0133", "P0134", "P0153", "P0154"]
+    cooldown_seconds: 600
+    hyundai_i20_notes: "i20 1.2L/1.4L Kappa engines: O2 sensor should switch >0.5Hz at idle, >1Hz at 2000 RPM. Replace at 100,000km per maintenance schedule."
+
+  # Correlation Rule - Catalytic Converter Efficiency Below Threshold
+  - rule_id: "RULE_CAT_EFFICIENCY_BELOW_THRESHOLD"
+    name: "Catalytic Converter Efficiency Below Threshold (Bank 1)"
+    description: "Detects downstream O2 sensor mirroring upstream sensor voltage pattern indicating reduced catalytic converter efficiency"
+    category: "emissions"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.85
+    conditions:
+      - sensor_name: "o2_sensor_voltage_b1s1"
+        sensor_unit: "V"
+        operator: "exists"
+        condition_group: "cat_inefficiency"
+      - sensor_name: "engine_load_pct"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 25.0
+        condition_group: "sufficient_load"
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "between"
+        threshold_min: 1500
+        threshold_max: 3000
+        condition_group: "steady_state"
+    explanation_template: "Downstream O2 sensor (B1S2) voltage pattern correlates {correlation_coefficient} with upstream (B1S1) - catalytic converter efficiency below threshold"
+    recommended_checks:
+      - "Verify no exhaust leaks before or after catalytic converter"
+      - "Check for engine misfires (raw fuel damages catalyst)"
+      - "Inspect O2 sensors for contamination"
+      - "Perform catalytic converter temperature test (inlet vs outlet)"
+      - "Check for rich/lean conditions damaging catalyst"
+    recommended_actions:
+      - "Replace catalytic converter if efficiency confirmed low"
+      - "Fix any engine misfires or fuel trim issues first"
+      - "Replace both O2 sensors if contaminated"
+      - "Check for PCM software updates for catalyst monitoring"
+    safety_notes:
+      - "Failed catalytic converter increases emissions significantly"
+      - "May cause vehicle to fail emissions inspection"
+      - "Can trigger P0420 (Catalyst System Efficiency Below Threshold)"
+      - "Driving with misfire will destroy new catalytic converter"
+    source: "hyundai_specific"
+    dtc_hints: ["P0420", "P0430", "P0133", "P0153"]
+    cooldown_seconds: 1800
+    hyundai_i20_notes: "i20 catalyst monitored during steady-state cruise 1500-3000 RPM. B1S2 should show dampened voltage (0.4-0.6V) vs B1S1 switching (0.1-0.9V). Correlation >0.7 indicates failure."
+
+  # Threshold Rule - EVAP Leak Detected
+  - rule_id: "RULE_EVAP_LEAK_DETECTED"
+    name: "EVAP System Leak Detected"
+    description: "Detects fuel tank pressure sensor reading indicating EVAP system leak (small or large leak)"
+    category: "emissions"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 5
+    confidence: 0.75
+    conditions:
+      - sensor_name: "fuel_tank_pressure_kpa"
+        sensor_unit: "kPa"
+        operator: "greater_than"
+        threshold: -2.0  # kPa (vacuum decay - less negative = leak)
+        evaluation_window_seconds: 300
+        condition_group: "vacuum_decay"
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "equal"
+        threshold: 0
+        condition_group: "engine_off"
+      - sensor_name: "fuel_tank_pressure_kpa"
+        sensor_unit: "kPa"
+        operator: "greater_than"
+        threshold: -1.0  # kPa - less vacuum decay means smaller leak
+        condition_group: "leak_rate"
+    explanation_template: "Fuel tank pressure {observed_value} kPa indicates EVAP leak - vacuum decay rate {rate} kPa/min exceeds threshold"
+    recommended_checks:
+      - "Check gas cap tightness and seal condition"
+      - "Inspect EVAP purge valve operation"
+      - "Check EVAP vent valve operation"
+      - "Inspect charcoal canister for damage"
+      - "Check EVAP lines for cracks or disconnections"
+      - "Perform smoke test on EVAP system"
+    recommended_actions:
+      - "Tighten or replace gas cap"
+      - "Replace faulty purge valve"
+      - "Replace faulty vent valve"
+      - "Repair or replace damaged EVAP lines"
+      - "Replace charcoal canister if saturated/damaged"
+    safety_notes:
+      - "EVAP leaks release fuel vapors to atmosphere"
+      - "May cause check engine light and failed emissions test"
+      - "Large leak can trigger P0455, small leak P0456"
+      - "Gas cap is most common cause - check first"
+    source: "hyundai_specific"
+    dtc_hints: ["P0440", "P0441", "P0442", "P0455", "P0456", "P0457"]
+    cooldown_seconds: 3600
+    hyundai_i20_notes: "i20 EVAP monitor runs at key-off with >25% fuel level. System applies vacuum via purge valve, seals vent valve, monitors FTP sensor decay. >-2kPa after 10 min = leak. Gas cap torque: 1.5-2.5 Nm."
+
+  # Correlation Rule - EGR Flow Insufficient
+  - rule_id: "RULE_EGR_FLOW_INSUFFICIENT"
+    name: "EGR Flow Insufficient"
+    description: "Detects EGR valve position not matching commanded position or insufficient flow indicated by position error"
+    category: "emissions"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 3
+    confidence: 0.8
+    conditions:
+      - sensor_name: "egr_position_pct"
+        sensor_unit: "%"
+        operator: "less_than"
+        threshold: 80.0  # Expected position not reached
+        condition_group: "position_error"
+      - sensor_name: "egr_error_pct"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 15.0  # Position error >15%
+        condition_group: "position_error"
+      - sensor_name: "engine_load_pct"
+        sensor_unit: "%"
+        operator: "greater_than"
+        threshold: 30.0
+        condition_group: "egr_active_zone"
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "between"
+        threshold_min: 1800
+        threshold_max: 3500
+        condition_group: "egr_active_zone"
+    explanation_template: "EGR valve position {egr_position_pct}% vs commanded, error {egr_error_pct}% - insufficient EGR flow detected"
+    recommended_checks:
+      - "Check EGR valve for carbon buildup/restriction"
+      - "Inspect EGR passages in intake manifold"
+      - "Verify EGR position sensor operation"
+      - "Check EGR solenoid/valve electrical connections"
+      - "Test EGR valve operation with scan tool"
+    recommended_actions:
+      - "Clean EGR valve and passages"
+      - "Replace EGR valve if carbon cannot be removed"
+      - "Replace EGR position sensor if faulty"
+      - "Repair wiring/connector issues"
+      - "Perform EGR adaptation/learning after repair"
+    safety_notes:
+      - "Insufficient EGR increases NOx emissions"
+      - "May cause engine knock/ping under load"
+      - "Can trigger P0401 (EGR Flow Insufficient)"
+      - "Carbon buildup common on i20 GDI engines"
+    source: "hyundai_specific"
+    dtc_hints: ["P0401", "P0402", "P0403", "P0404", "P0405", "P0406"]
+    cooldown_seconds: 600
+    hyundai_i20_notes: "i20 1.0L/1.2L Kappa GDi: EGR active 1800-3500 RPM, 30-80% load. Position sensor integral to valve. Carbon buildup in cooler/passages common at 60,000km+. Clean passages during intake service."
+
+  # Composite Rule - Emissions System Failure
+  - rule_id: "RULE_EMISSIONS_SYSTEM_FAILURE"
+    name: "Emissions System Failure"
+    description: "Composite rule detecting emissions system failure from multiple indicators"
+    category: "emissions"
+    rule_type: "composite"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 1
+    confidence: 0.9
+    referenced_rule_ids:
+      - "RULE_O2_SENSOR_SLOW_RESPONSE"
+      - "RULE_CAT_EFFICIENCY_BELOW_THRESHOLD"
+      - "RULE_EVAP_LEAK_DETECTED"
+      - "RULE_EGR_FLOW_INSUFFICIENT"
+    composite_logic: "or"
+    explanation_template: "Multiple emissions system indicators triggered: {triggered_rules}"
+    recommended_checks:
+      - "Complete emissions system diagnosis"
+      - "Read all stored DTCs and freeze frame data"
+      - "Check O2 sensor waveforms (pre and post cat)"
+      - "Perform EVAP system smoke test"
+      - "Test EGR valve operation and flow"
+      - "Verify catalytic converter temperature rise"
+    recommended_actions:
+      - "Repair all identified emissions system issues"
+      - "Replace faulty O2 sensors"
+      - "Replace catalytic converter if failed"
+      - "Repair EVAP leaks"
+      - "Clean/replace EGR valve and passages"
+      - "Clear codes and perform drive cycle to verify"
+    safety_notes:
+      - "Multiple emissions failures will cause inspection failure"
+      - "May cause drivability issues and reduced fuel economy"
+      - "Continued operation can damage catalytic converter"
+      - "Address root causes before replacing components"
+    source: "hyundai_specific"
+    dtc_hints: ["P0133", "P0153", "P0420", "P0430", "P0442", "P0455", "P0456", "P0401"]
+    cooldown_seconds: 3600
+    hyundai_i20_notes: "i20 emissions monitors: O2 sensor (continuous), Catalyst (steady cruise), EVAP (key-off), EGR (steady load). All must complete for readiness. Drive cycle: cold start -> idle 2min -> accelerate to 60km/h -> cruise 5min -> decel -> idle 2min."

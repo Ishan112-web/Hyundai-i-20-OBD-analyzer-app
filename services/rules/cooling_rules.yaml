@@ -1,0 +1,213 @@
+# Cooling System Rules
+# Detects overheating, rapid temperature rise, and cooling system failures
+
+rules:
+  # Threshold Rule - Coolant Overheat
+  - rule_id: "RULE_COOLANT_OVERHEAT"
+    name: "Coolant Temperature Overheat"
+    description: "Detects when coolant temperature exceeds safe operating limits"
+    category: "cooling"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.9
+    conditions:
+      - sensor_name: "coolant_temp_c"
+        sensor_unit: "°C"
+        operator: "greater_than"
+        threshold: 105.0
+    explanation_template: "Coolant temperature reached {observed_value}°C, exceeding the safe limit of {threshold}°C"
+    recommended_checks:
+      - "Check coolant level in reservoir"
+      - "Inspect radiator for blockages"
+      - "Verify radiator fan operation"
+      - "Check for coolant leaks"
+    recommended_actions:
+      - "Allow engine to cool before opening radiator cap"
+      - "Top up coolant if low"
+      - "Replace thermostat if stuck closed"
+      - "Flush cooling system if contaminated"
+    safety_notes:
+      - "Never open radiator cap when engine is hot"
+      - "Hot coolant can cause severe burns"
+    source: "hyundai_specific"
+    dtc_hints: ["P0217", "P0128"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - Coolant Critical Overheat
+  - rule_id: "RULE_COOLANT_CRITICAL_OVERHEAT"
+    name: "Coolant Temperature Critical Overheat"
+    description: "Detects critically high coolant temperature requiring immediate action"
+    category: "cooling"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "critical"
+    priority: 1
+    confidence: 0.95
+    conditions:
+      - sensor_name: "coolant_temp_c"
+        sensor_unit: "°C"
+        operator: "greater_than"
+        threshold: 115.0
+    explanation_template: "CRITICAL: Coolant temperature reached {observed_value}°C - immediate engine shutdown recommended"
+    recommended_checks:
+      - "Stop vehicle immediately"
+      - "Allow engine to cool completely"
+    recommended_actions:
+      - "Do not continue driving"
+      - "Call for roadside assistance"
+      - "Full cooling system inspection required"
+    safety_notes:
+      - "Immediate engine damage risk"
+      - "Do not open cooling system until completely cool"
+      - "Risk of severe burns from pressurized coolant"
+    source: "hyundai_specific"
+    dtc_hints: ["P0217"]
+    cooldown_seconds: 600
+
+  # Trend Rule - Coolant Temp Rising Rapidly
+  - rule_id: "RULE_COOLANT_RAPID_RISE"
+    name: "Coolant Temperature Rising Rapidly"
+    description: "Detects abnormal rate of coolant temperature increase"
+    category: "cooling"
+    rule_type: "trend"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 3
+    confidence: 0.75
+    conditions:
+      - sensor_name: "coolant_temp_c"
+        sensor_unit: "°C"
+        trend_operator: "rate_above"
+        trend_window_seconds: 60
+        min_samples: 5
+        max_gap_seconds: 15
+        rate_threshold: 1.0  # °C per second
+    explanation_template: "Coolant temperature rising at {rate}°C/s, exceeding threshold of {rate_threshold}°C/s"
+    recommended_checks:
+      - "Check water pump operation"
+      - "Verify thermostat opening"
+      - "Check for air pockets in cooling system"
+      - "Inspect radiator fan clutch/operation"
+    recommended_actions:
+      - "Inspect water pump for leaks"
+      - "Replace thermostat"
+      - "Bleed cooling system"
+      - "Check radiator fan operation"
+    safety_notes:
+      - "Rapid temperature rise indicates imminent overheating"
+      - "Monitor temperature gauge closely"
+    source: "generic_obd"
+    dtc_hints: ["P0217"]
+    cooldown_seconds: 180
+
+  # Threshold Rule - Coolant Temp Too Low (Thermostat Stuck Open)
+  - rule_id: "RULE_COOLANT_TOO_LOW"
+    name: "Coolant Temperature Below Operating Range"
+    description: "Detects when engine fails to reach normal operating temperature"
+    category: "cooling"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "low"
+    priority: 8
+    confidence: 0.7
+    conditions:
+      - sensor_name: "coolant_temp_c"
+        sensor_unit: "°C"
+        operator: "less_than"
+        threshold: 70.0
+    explanation_template: "Engine coolant temperature only {observed_value}°C, below normal operating range (85-100°C)"
+    recommended_checks:
+      - "Verify thermostat operation (may be stuck open)"
+      - "Check coolant temperature sensor accuracy"
+    recommended_actions:
+      - "Replace thermostat if stuck open"
+      - "Verify coolant temp sensor reading"
+    safety_notes:
+      - "Engine runs rich when cold, increasing fuel consumption"
+      - "May cause increased emissions"
+    source: "generic_obd"
+    dtc_hints: ["P0128"]
+    cooldown_seconds: 600
+
+  # Correlation Rule - Overheating with Fan Failure
+  - rule_id: "RULE_OVERHEAT_FAN_FAILURE"
+    name: "Overheating with Radiator Fan Failure"
+    description: "Detects overheating condition combined with radiator fan not operating"
+    category: "cooling"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.85
+    conditions:
+      - sensor_name: "coolant_temp_c"
+        sensor_unit: "°C"
+        operator: "greater_than"
+        threshold: 100.0
+        condition_group: "overheating"
+      - sensor_name: "radiator_fan_rpm"
+        sensor_unit: "RPM"
+        operator: "less_than"
+        threshold: 100.0
+        condition_group: "fan_failure"
+      - sensor_name: "vehicle_speed_kmh"
+        sensor_unit: "km/h"
+        operator: "less_than"
+        threshold: 30.0
+        condition_group: "low_speed"
+    explanation_template: "Engine overheating ({coolant_temp_c}°C) with radiator fan not operating ({radiator_fan_rpm} RPM) at low speed"
+    recommended_checks:
+      - "Check radiator fan fuse and relay"
+      - "Test fan motor operation"
+      - "Verify fan control module"
+      - "Check coolant temperature sensor (fan trigger)"
+    recommended_actions:
+      - "Replace fan motor if failed"
+      - "Replace fan relay/fuse"
+      - "Repair fan control circuit"
+    safety_notes:
+      - "Fan failure at low speed causes rapid overheating"
+      - "Do not idle for extended periods"
+    source: "hyundai_specific"
+    dtc_hints: ["P0480", "P0481", "P0482"]
+    cooldown_seconds: 300
+
+  # Composite Rule - Cooling System Failure
+  - rule_id: "RULE_COOLING_SYSTEM_FAILURE"
+    name: "Cooling System Failure"
+    description: "Composite rule detecting cooling system failure from multiple indicators"
+    category: "cooling"
+    rule_type: "composite"
+    enabled: true
+    version: "1.0"
+    severity: "critical"
+    priority: 1
+    confidence: 0.95
+    referenced_rule_ids:
+      - "RULE_COOLANT_OVERHEAT"
+      - "RULE_COOLANT_CRITICAL_OVERHEAT"
+      - "RULE_COOLANT_RAPID_RISE"
+      - "RULE_OVERHEAT_FAN_FAILURE"
+    composite_logic: "or"
+    explanation_template: "Multiple cooling system indicators triggered: {triggered_rules}"
+    recommended_checks:
+      - "Complete cooling system inspection"
+      - "Pressure test cooling system"
+      - "Check all cooling system components"
+    recommended_actions:
+      - "Repair all identified cooling system issues"
+      - "Flush and refill cooling system"
+      - "Replace thermostat and water pump if needed"
+    safety_notes:
+      - "Continued operation will cause severe engine damage"
+      - "Stop driving immediately"
+    source: "hyundai_specific"
+    dtc_hints: ["P0217", "P0128", "P0480", "P0481", "P0482"]
+    cooldown_seconds: 600

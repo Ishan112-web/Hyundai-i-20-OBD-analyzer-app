@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+
+{% set report_title = "Comprehensive Diagnostic Report" %}
+
+{% block content %}
+<!-- Diagnostic Session Info -->
+{% if diagnostic_session %}
+<section class="report-section">
+    <h2 class="section-title">Diagnostic Session Information</h2>
+    <div class="kv-grid">
+        {% if diagnostic_session.session_id %}
+        <div class="kv-item">
+            <div class="kv-label">Session ID</div>
+            <div class="kv-value">{{ diagnostic_session.session_id }}</div>
+        </div>
+        {% endif %}
+        {% if diagnostic_session.diagnosis_id %}
+        <div class="kv-item">
+            <div class="kv-label">Diagnosis ID</div>
+            <div class="kv-value">{{ diagnostic_session.diagnosis_id }}</div>
+        </div>
+        {% endif %}
+        <div class="kv-item">
+            <div class="kv-label">Data Source</div>
+            <div class="kv-value">
+                <span class="data-source-badge {{ diagnostic_session.data_source.lower() }}">{{ diagnostic_session.data_source }}</span>
+            </div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Operating Mode</div>
+            <div class="kv-value">{{ diagnostic_session.operating_mode }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Available Sensors</div>
+            <div class="kv-value">{{ diagnostic_session.available_sensor_count }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Available DTCs</div>
+            <div class="kv-value">{{ diagnostic_session.available_dtc_count }}</div>
+        </div>
+        {% if diagnostic_session.diagnosis_timestamp %}
+        <div class="kv-item">
+            <div class="kv-label">Diagnosis Time</div>
+            <div class="kv-value">{{ diagnostic_session.diagnosis_timestamp }}</div>
+        </div>
+        {% endif %}
+        {% if diagnostic_session.telemetry_record_count %}
+        <div class="kv-item">
+            <div class="kv-label">Telemetry Records</div>
+            <div class="kv-value">{{ diagnostic_session.telemetry_record_count }}</div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+
+<!-- DTC Scan Results -->
+<section class="report-section">
+    <h2 class="section-title">DTC Scan Results</h2>
+    {% if dtcs %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dtc in dtcs %}
+                <tr>
+                    <td><strong>{{ dtc.code }}</strong></td>
+                    <td>{{ dtc.description }}</td>
+                    <td><span class="severity-badge severity-{{ dtc.severity.value.lower() }}">{{ dtc.severity.value }}</span></td>
+                    <td>{{ dtc.status }}</td>
+                    <td><span class="data-source-badge {{ dtc.data_source.value.lower() }}">{{ dtc.data_source.value }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if dtcs[0].possible_causes or dtcs[0].recommended_verification %}
+    <div class="mt-16">
+        <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 12px;">DTC Details</h3>
+        {% for dtc in dtcs %}
+        <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+            <div style="font-weight: 600; margin-bottom: 8px;">{{ dtc.code }} - {{ dtc.description }}</div>
+            {% if dtc.possible_causes %}
+            <div style="margin-bottom: 8px;">
+                <strong style="color: var(--accent-blue);">Possible Causes:</strong>
+                <ul class="bullet-list" style="margin-top: 4px;">
+                    {% for cause in dtc.possible_causes %}
+                    <li>{{ cause }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            {% if dtc.recommended_verification %}
+            <div>
+                <strong style="color: var(--accent-amber);">Recommended Verification:</strong>
+                <ul class="bullet-list" style="margin-top: 4px;">
+                    {% for verify in dtc.recommended_verification %}
+                    <li>{{ verify }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="text-muted text-center" style="padding: 20px;">No DTC records available for this report.</p>
+    {% endif %}
+</section>
+
+<!-- AI Diagnostic Findings -->
+{% if ai_diagnosis %}
+<section class="report-section">
+    <h2 class="section-title">AI Diagnostic Findings</h2>
+    <div class="kv-grid">
+        <div class="kv-item">
+            <div class="kv-label">Diagnosis ID</div>
+            <div class="kv-value">{{ ai_diagnosis.diagnosis_id }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Timestamp</div>
+            <div class="kv-value">{{ ai_diagnosis.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Overall Confidence</div>
+            <div class="kv-value">{{ "%.0f"|format(ai_diagnosis.confidence * 100) }}%</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Severity</div>
+            <div class="kv-value"><span class="severity-badge severity-{{ ai_diagnosis.severity.value.lower() }}">{{ ai_diagnosis.severity.value }}</span></div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Data Quality</div>
+            <div class="kv-value">{{ ai_diagnosis.data_quality }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Source</div>
+            <div class="kv-value"><span class="data-source-badge {{ ai_diagnosis.data_source.value.lower() }}">{{ ai_diagnosis.data_source.value }}</span></div>
+        </div>
+    </div>
+
+    {% if ai_diagnosis.summary %}
+    <div class="mt-16">
+        <strong style="color: var(--text-primary);">Summary:</strong>
+        <p style="margin-top: 8px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">{{ ai_diagnosis.summary }}</p>
+    </div>
+    {% endif %}
+
+    {% if ai_diagnosis.primary_diagnosis %}
+    <div class="mt-16">
+        <h3 style="font-size: 1rem; color: var(--accent-blue); margin-bottom: 12px;">Primary Diagnosis</h3>
+        <div style="padding: 16px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+            <div style="font-weight: 600; margin-bottom: 4px;">{{ ai_diagnosis.primary_diagnosis.code }} - {{ ai_diagnosis.primary_diagnosis.description }}</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;">
+                Confidence: {{ "%.0f"|format(ai_diagnosis.primary_diagnosis.confidence * 100) }}% •
+                Severity: <span class="severity-badge severity-{{ ai_diagnosis.primary_diagnosis.severity.value.lower() }}">{{ ai_diagnosis.primary_diagnosis.severity.value }}</span>
+            </div>
+            {% if ai_diagnosis.primary_diagnosis.probable_causes %}
+            <div style="margin-top: 12px;">
+                <strong style="color: var(--accent-blue);">Probable Causes:</strong>
+                {% for cause in ai_diagnosis.primary_diagnosis.probable_causes %}
+                <div style="margin-top: 8px; padding: 8px; background: var(--bg-card); border-radius: 6px; border: 1px solid var(--border);">
+                    <div style="font-weight: 500;">{{ cause.cause }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">{{ cause.explanation }}</div>
+                    <div style="font-size: 0.8rem; margin-top: 4px;">Confidence: {{ "%.0f"|format(cause.confidence * 100) }}% • Urgency: {{ cause.urgency }}</div>
+                    {% if cause.supporting_evidence %}
+                    <div style="margin-top: 4px; font-size: 0.8rem;"><strong>Supporting:</strong> {{ cause.supporting_evidence | join(', ') }}</div>
+                    {% endif %}
+                    {% if cause.verification_steps %}
+                    <div style="margin-top: 4px; font-size: 0.8rem;"><strong>Verification:</strong> {{ cause.verification_steps | join(', ') }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if ai_diagnosis.secondary_diagnoses %}
+    <div class="mt-16">
+        <h3 style="font-size: 1rem; color: var(--accent-blue); margin-bottom: 12px;">Secondary Diagnoses</h3>
+        {% for sec in ai_diagnosis.secondary_diagnoses %}
+        <div style="margin-bottom: 12px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+            <div style="font-weight: 600;">{{ sec.code }} - {{ sec.description }}</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                Confidence: {{ "%.0f"|format(sec.confidence * 100) }}% •
+                Severity: <span class="severity-badge severity-{{ sec.severity.value.lower() }}">{{ sec.severity.value }}</span>
+            </div>
+            {% if sec.relationship_to_primary %}
+            <div style="font-size: 0.85rem; margin-top: 4px; color: var(--accent-purple);">{{ sec.relationship_to_primary }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if ai_diagnosis.safety_warnings %}
+    <div class="mt-16">
+        <h3 style="font-size: 1rem; color: var(--accent-red); margin-bottom: 12px;">Safety Warnings</h3>
+        <ul class="bullet-list">
+            {% for warning in ai_diagnosis.safety_warnings %}
+            <li class="critical">{{ warning }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if ai_diagnosis.estimated_cost_inr %}
+    <div class="mt-16">
+        <div style="padding: 12px; background: rgba(155, 89, 182, 0.1); border: 1px solid var(--accent-purple); border-radius: 8px;">
+            <strong style="color: var(--accent-purple);">Estimated Repair Cost: {{ ai_diagnosis.estimated_cost_inr }}</strong>
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Estimate only - not a verified quotation. Actual costs may vary.</div>
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% endif %}
+
+<!-- Deterministic Rule Engine Findings -->
+{% if rule_findings %}
+<section class="report-section">
+    <h2 class="section-title">Deterministic Rule Engine Findings</h2>
+    <p class="section-subtitle">{{ rule_findings|length }} rule finding(s) from deterministic evaluation</p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rule ID</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Severity</th>
+                    <th>Confidence</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for finding in rule_findings %}
+                <tr>
+                    <td><strong>{{ finding.rule_id }}</strong></td>
+                    <td>{{ finding.rule_name }}</td>
+                    <td>{{ finding.category }}</td>
+                    <td><span class="severity-badge severity-{{ finding.severity.value.lower() }}">{{ finding.severity.value }}</span></td>
+                    <td>{{ "%.0f"|format(finding.confidence * 100) }}%</td>
+                    <td><span class="data-source-badge {{ finding.data_source.value.lower() }}">{{ finding.data_source.value }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-16">
+        <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 12px;">Finding Details</h3>
+        {% for finding in rule_findings %}
+        <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong>{{ finding.rule_id }} - {{ finding.rule_name }}</strong>
+                <span class="severity-badge severity-{{ finding.severity.value.lower() }}">{{ finding.severity.value }}</span>
+            </div>
+            <div style="color: var(--text-secondary); margin-bottom: 8px;">{{ finding.explanation }}</div>
+
+            {% if finding.observed_values or finding.expected_values %}
+            <div style="font-size: 0.85rem; margin-bottom: 8px;">
+                {% if finding.observed_values %}
+                <strong>Observed:</strong> {{ finding.observed_values | tojson }}
+                {% endif %}
+                {% if finding.expected_values %}
+                {% if finding.observed_values %} • {% endif %}
+                <strong>Expected:</strong> {{ finding.expected_values | tojson }}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if finding.evidence %}
+            <div style="margin-bottom: 8px;">
+                <strong style="color: var(--accent-blue);">Evidence:</strong>
+                <ul class="bullet-list" style="margin-top: 4px;">
+                    {% for ev in finding.evidence %}
+                    <li>{{ ev }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if finding.recommended_checks %}
+            <div style="margin-bottom: 8px;">
+                <strong style="color: var(--accent-amber);">Recommended Checks:</strong>
+                <ul class="bullet-list" style="margin-top: 4px;">
+                    {% for check in finding.recommended_checks %}
+                    <li>{{ check }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if finding.recommended_actions %}
+            <div style="margin-bottom: 8px;">
+                <strong style="color: var(--accent-blue);">Recommended Actions:</strong>
+                <ul class="bullet-list" style="margin-top: 4px;">
+                    {% for action in finding.recommended_actions %}
+                    <li>{{ action }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if finding.safety_notes %}
+            <div>
+                <strong style="color: var(--accent-red);">Safety Notes:</strong>
+                <ul class="bullet-list" style="margin-top: 4px;">
+                    {% for note in finding.safety_notes %}
+                    <li class="critical">{{ note }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if finding.dtc_hints %}
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 8px;">
+                Related DTCs: {{ finding.dtc_hints | join(', ') }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<!-- Telemetry Summary -->
+{% if telemetry_summary %}
+<section class="report-section">
+    <h2 class="section-title">Telemetry Summary</h2>
+    <div class="kv-grid">
+        {% if telemetry_summary.rpm is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Engine RPM</div>
+            <div class="kv-value">{{ "%.0f"|format(telemetry_summary.rpm) }} RPM</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.speed_kmh is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Vehicle Speed</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.speed_kmh) }} km/h</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.coolant_temp_c is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Coolant Temperature</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.coolant_temp_c) }} °C</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.throttle_pos_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Throttle Position</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.throttle_pos_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.engine_load_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Engine Load</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.engine_load_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.stft_b1_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Short Term Fuel Trim (B1)</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.stft_b1_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.ltft_b1_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Long Term Fuel Trim (B1)</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.ltft_b1_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.voltage_v is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Battery Voltage</div>
+            <div class="kv-value">{{ "%.2f"|format(telemetry_summary.voltage_v) }} V</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.maf_g_s is not none %}
+        <div class="kv-item">
+            <div class="kv-label">MAF</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.maf_g_s) }} g/s</div>
+        </div>
+        {% endif %}
+        {% if telemetry_summary.map_kpa is not none %}
+        <div class="kv-item">
+            <div class="kv-label">MAP</div>
+            <div class="kv-value">{{ "%.1f"|format(telemetry_summary.map_kpa) }} kPa</div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="mt-16" style="font-size: 0.8rem; color: var(--text-secondary);">
+        <span class="data-source-badge {{ telemetry_summary.data_source.value.lower() }}">{{ telemetry_summary.data_source.value }}</span>
+        • Records: {{ telemetry_summary.record_count }}
+        {% if telemetry_summary.timestamp %} • Last: {{ telemetry_summary.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}{% endif %}
+    </div>
+</section>
+{% endif %}
+
+<!-- Recommendations -->
+<section class="report-section">
+    <h2 class="section-title">Recommendations</h2>
+
+    {% if recommendations.immediate_attention %}
+    <div class="recommendation-category rec-immediate">
+        <div class="recommendation-category-title">🔴 Immediate Attention</div>
+        <ul class="bullet-list">
+            {% for rec in recommendations.immediate_attention %}
+            <li class="critical">{{ rec }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if recommendations.further_verification %}
+    <div class="recommendation-category rec-verification">
+        <div class="recommendation-category-title">🟡 Further Verification</div>
+        <ul class="bullet-list">
+            {% for rec in recommendations.further_verification %}
+            <li class="warning">{{ rec }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if recommendations.routine_maintenance %}
+    <div class="recommendation-category rec-routine">
+        <div class="recommendation-category-title">🔵 Routine Maintenance</div>
+        <ul class="bullet-list">
+            {% for rec in recommendations.routine_maintenance %}
+            <li>{{ rec }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if recommendations.monitoring %}
+    <div class="recommendation-category rec-monitoring">
+        <div class="recommendation-category-title">⚪ Monitoring</div>
+        <ul class="bullet-list">
+            {% for rec in recommendations.monitoring %}
+            <li>{{ rec }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if not recommendations.immediate_attention and not recommendations.further_verification and not recommendations.routine_maintenance and not recommendations.monitoring %}
+    <p class="text-muted text-center" style="padding: 20px;">No specific recommendations at this time. Continue routine maintenance per schedule.</p>
+    {% endif %}
+</section>
+{% endblock %}

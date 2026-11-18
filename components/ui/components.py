@@ -1,0 +1,1579 @@
+"""
+i20 AI Garage - UI Component Primitives
+
+Reusable, accessible Streamlit-compatible component primitives built on the design system.
+All components use design tokens and semantic HTML with ARIA attributes.
+"""
+
+from typing import Final, Literal, Optional, Callable
+from dataclasses import dataclass
+from enum import Enum
+import streamlit as st
+
+from .tokens import (
+    # Colors
+    ACCENT_PRIMARY, ACCENT_PRIMARY_HOVER, ACCENT_PRIMARY_ACTIVE, ACCENT_SECONDARY, ACCENT_SELECTED,
+    STATUS_SUCCESS, STATUS_WARNING, STATUS_CRITICAL, STATUS_INFO, STATUS_NEUTRAL,
+    SURFACE_PRIMARY, SURFACE_SECONDARY, SURFACE_ELEVATED, SURFACE_INTERACTIVE,
+    TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, TEXT_ON_ACCENT,
+    BORDER_DEFAULT, BORDER_SUBTLE, BORDER_STRONG, BORDER_FOCUS,
+    # Spacing
+    SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_5, SPACE_6,
+    GAP_INLINE, GAP_FIELD,
+    # Radius
+    RADIUS_SM, RADIUS_MD, RADIUS_LG, RADIUS_PILL,
+    # Shadows
+    SHADOW_SM, SHADOW_MD, SHADOW_LG, SHADOW_FOCUS,
+    # Typography
+    FONT_FAMILY_BASE, FONT_SIZE_LABEL, FONT_SIZE_BODY, FONT_SIZE_BODY_SM, FONT_SIZE_CAPTION,
+    FONT_WEIGHT_LABEL, FONT_WEIGHT_BODY,
+    LETTER_SPACING_LABEL, LETTER_SPACING_CAPTION,
+    # Component constants
+    BUTTON_MIN_HEIGHT, BUTTON_PADDING_VERTICAL, BUTTON_PADDING_HORIZONTAL, BUTTON_ICON_GAP,
+    BUTTON_RADIUS, BUTTON_FONT_SIZE, BUTTON_FONT_WEIGHT,
+    BADGE_PADDING_VERTICAL, BADGE_PADDING_HORIZONTAL, BADGE_RADIUS, BADGE_FONT_SIZE, BADGE_FONT_WEIGHT,
+    CARD_RADIUS, CARD_PADDING, CARD_BORDER,
+    INPUT_HEIGHT, INPUT_PADDING_VERTICAL, INPUT_PADDING_HORIZONTAL, INPUT_RADIUS, INPUT_FONT_SIZE,
+    TABLE_HEADER_BG, TABLE_HEADER_FONT_SIZE, TABLE_HEADER_FONT_COLOR, TABLE_ROW_FONT_SIZE,
+    TABLE_ROW_FONT_COLOR, TABLE_BORDER, TABLE_HOVER_BG, TABLE_SELECTED_BG,
+    EMPTY_STATE_PADDING, EMPTY_STATE_ICON_SIZE,
+    SKELETON_PULSE_DURATION, SPINNER_SIZE_SM, SPINNER_SIZE_MD, SPINNER_SIZE_LG,
+    WIZARD_CARD_RADIUS, WIZARD_CARD_SHADOW, WIZARD_CARD_PADDING,
+    SIDEBAR_WIDTH_EXPANDED, SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_TRANSITION,
+    TOP_BAR_HEIGHT, TOP_BAR_BG, TOP_BAR_BORDER,
+    TRANSITION_FAST, TRANSITION_NORMAL,
+)
+from .styles import CSS_VAR_PREFIX
+
+
+# =============================================================================
+# BUTTON COMPONENT
+# =============================================================================
+
+class ButtonVariant(Enum):
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+    GHOST = "ghost"
+    DANGER = "danger"
+
+class ButtonSize(Enum):
+    SM = "sm"
+    MD = "md"
+    LG = "lg"
+
+@dataclass
+class ButtonProps:
+    """Properties for Button component."""
+    label: str
+    variant: ButtonVariant = ButtonVariant.PRIMARY
+    size: ButtonSize = ButtonSize.MD
+    icon: str = ""
+    icon_position: Literal["left", "right"] = "left"
+    disabled: bool = False
+    full_width: bool = False
+    on_click: Optional[Callable] = None
+    key: Optional[str] = None
+    aria_label: Optional[str] = None
+    type: Literal["button", "submit", "reset"] = "button"
+
+
+def button(props: ButtonProps) -> bool:
+    """
+    Render a styled button using Streamlit's native button with custom CSS.
+
+    Returns True if button was clicked.
+    """
+    # Build unique key
+    btn_key = props.key or f"btn_{id(props)}"
+
+    # Variant styles
+    variant_styles = {
+        ButtonVariant.PRIMARY: {
+            "bg": ACCENT_PRIMARY,
+            "bg_hover": ACCENT_PRIMARY_HOVER,
+            "bg_active": ACCENT_PRIMARY_ACTIVE,
+            "color": TEXT_ON_ACCENT,
+            "border": "1px solid transparent",
+        },
+        ButtonVariant.SECONDARY: {
+            "bg": SURFACE_PRIMARY,
+            "bg_hover": SURFACE_INTERACTIVE,
+            "bg_active": SURFACE_SECONDARY,
+            "color": TEXT_PRIMARY,
+            "border": f"1px solid {BORDER_DEFAULT}",
+        },
+        ButtonVariant.GHOST: {
+            "bg": "transparent",
+            "bg_hover": SURFACE_INTERACTIVE,
+            "bg_active": SURFACE_SECONDARY,
+            "color": TEXT_PRIMARY,
+            "border": "1px solid transparent",
+        },
+        ButtonVariant.DANGER: {
+            "bg": STATUS_CRITICAL,
+            "bg_hover": "#c0392b",
+            "bg_active": "#a93226",
+            "color": TEXT_ON_ACCENT,
+            "border": "1px solid transparent",
+        },
+    }
+
+    # Size styles
+    size_styles = {
+        ButtonSize.SM: {
+            "height": "32px",
+            "padding": f"4px {SPACE_3}",
+            "font_size": FONT_SIZE_CAPTION,
+        },
+        ButtonSize.MD: {
+            "height": BUTTON_MIN_HEIGHT,
+            "padding": f"{BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL}",
+            "font_size": BUTTON_FONT_SIZE,
+        },
+        ButtonSize.LG: {
+            "height": "48px",
+            "padding": f"{SPACE_3} {SPACE_6}",
+            "font_size": FONT_SIZE_BODY,
+        },
+    }
+
+    v = variant_styles[props.variant]
+    s = size_styles[props.size]
+
+    # Build button HTML
+    icon_html = f'<span style="display: flex; align-items: center;">{props.icon}</span>' if props.icon else ""
+    label_html = f'<span>{props.label}</span>'
+
+    if props.icon_position == "left":
+        content_html = f"{icon_html}{label_html}"
+    else:
+        content_html = f"{label_html}{icon_html}"
+
+    width_style = "width: 100%;" if props.full_width else ""
+    disabled_style = "opacity: 0.5; cursor: not-allowed;" if props.disabled else ""
+    disabled_attr = "disabled" if props.disabled else ""
+    aria_label = f' aria-label="{props.aria_label}"' if props.aria_label else ""
+
+    # Inject custom CSS for this button instance
+    st.markdown(f"""
+<style>
+.i20-btn-{btn_key} {{
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: {BUTTON_ICON_GAP} !important;
+  font-family: {FONT_FAMILY_BASE} !important;
+  font-size: {s['font_size']} !important;
+  font-weight: {BUTTON_FONT_WEIGHT} !important;
+  height: {s['height']} !important;
+  padding: {s['padding']} !important;
+  border-radius: {BUTTON_RADIUS} !important;
+  border: {v['border']} !important;
+  background-color: {v['bg']} !important;
+  color: {v['color']} !important;
+  cursor: {'' if props.disabled else 'pointer'} !important;
+  transition: all {TRANSITION_FAST} !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  {width_style}
+  {disabled_style}
+}}
+.i20-btn-{btn_key}:hover:not(:disabled) {{
+  background-color: {v['bg_hover']} !important;
+}}
+.i20-btn-{btn_key}:active:not(:disabled) {{
+  background-color: {v['bg_active']} !important;
+}}
+.i20-btn-{btn_key}:focus-visible {{
+  outline: none !important;
+  box-shadow: {SHADOW_FOCUS} !important;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+    # Render button using Streamlit (for functionality) but hide it, then render custom HTML
+    # We use a hidden Streamlit button for the actual click handling
+    clicked = st.button(
+        props.label,
+        key=btn_key,
+        disabled=props.disabled,
+        use_container_width=props.full_width,
+        type="primary" if props.variant == ButtonVariant.PRIMARY else "secondary",
+        help=props.aria_label or "",
+    )
+
+    # Also render the styled HTML version (hidden from screen readers, visual only)
+    # The Streamlit button handles the actual interaction
+    st.markdown(f"""
+<button class="i20-btn-{btn_key}" {disabled_attr} {aria_label} type="{props.type}" tabindex="-1" aria-hidden="true">
+  {content_html}
+</button>
+""", unsafe_allow_html=True)
+
+    return clicked
+
+
+def button_primary(label: str, **kwargs) -> bool:
+    """Convenience function for primary button."""
+    return button(ButtonProps(label=label, variant=ButtonVariant.PRIMARY, **kwargs))
+
+def button_secondary(label: str, **kwargs) -> bool:
+    """Convenience function for secondary button."""
+    return button(ButtonProps(label=label, variant=ButtonVariant.SECONDARY, **kwargs))
+
+def button_ghost(label: str, **kwargs) -> bool:
+    """Convenience function for ghost button."""
+    return button(ButtonProps(label=label, variant=ButtonVariant.GHOST, **kwargs))
+
+def button_danger(label: str, **kwargs) -> bool:
+    """Convenience function for danger button."""
+    return button(ButtonProps(label=label, variant=ButtonVariant.DANGER, **kwargs))
+
+
+# =============================================================================
+# BADGE COMPONENT
+# =============================================================================
+
+class BadgeVariant(Enum):
+    SUCCESS = "success"
+    WARNING = "warning"
+    CRITICAL = "critical"
+    INFO = "info"
+    NEUTRAL = "neutral"
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+
+BADGE_STYLES = {
+    BadgeVariant.SUCCESS: {"bg": STATUS_SUCCESS, "color": TEXT_ON_ACCENT},
+    BadgeVariant.WARNING: {"bg": STATUS_WARNING, "color": TEXT_ON_ACCENT},
+    BadgeVariant.CRITICAL: {"bg": STATUS_CRITICAL, "color": TEXT_ON_ACCENT},
+    BadgeVariant.INFO: {"bg": STATUS_INFO, "color": TEXT_ON_ACCENT},
+    BadgeVariant.NEUTRAL: {"bg": STATUS_NEUTRAL, "color": TEXT_ON_ACCENT},
+    BadgeVariant.PRIMARY: {"bg": ACCENT_PRIMARY, "color": TEXT_ON_ACCENT},
+    BadgeVariant.SECONDARY: {"bg": ACCENT_SECONDARY, "color": TEXT_ON_ACCENT},
+}
+
+
+def badge(label: str, variant: BadgeVariant = BadgeVariant.NEUTRAL, icon: str = "", key: str = "") -> None:
+    """
+    Render a badge/pill component.
+
+    Args:
+        label: Badge text
+        variant: Badge variant
+        icon: Optional icon
+        key: Optional key for uniqueness
+    """
+    style = BADGE_STYLES[variant]
+    badge_key = key or f"badge_{id(label)}"
+
+    icon_html = f'<span style="display: flex; align-items: center; margin-right: 4px;">{icon}</span>' if icon else ""
+
+    st.markdown(f"""
+<style>
+.i20-badge-{badge_key} {{
+  display: inline-flex;
+  align-items: center;
+  padding: {BADGE_PADDING_VERTICAL} {BADGE_PADDING_HORIZONTAL};
+  font-size: {BADGE_FONT_SIZE};
+  font-weight: {BADGE_FONT_WEIGHT};
+  border-radius: {BADGE_RADIUS};
+  line-height: 1;
+  white-space: nowrap;
+  background-color: {style['bg']};
+  color: {style['color']};
+}}
+</style>
+<span class="i20-badge-{badge_key}">{icon_html}{label}</span>
+""", unsafe_allow_html=True)
+
+
+# =============================================================================
+# ALERT COMPONENT
+# =============================================================================
+
+class AlertVariant(Enum):
+    SUCCESS = "success"
+    WARNING = "warning"
+    CRITICAL = "critical"
+    INFO = "info"
+
+ALERT_STYLES = {
+    AlertVariant.SUCCESS: {"bg": f"{STATUS_SUCCESS}1a", "border": STATUS_SUCCESS, "icon_color": STATUS_SUCCESS},
+    AlertVariant.WARNING: {"bg": f"{STATUS_WARNING}1a", "border": STATUS_WARNING, "icon_color": STATUS_WARNING},
+    AlertVariant.CRITICAL: {"bg": f"{STATUS_CRITICAL}1a", "border": STATUS_CRITICAL, "icon_color": STATUS_CRITICAL},
+    AlertVariant.INFO: {"bg": f"{STATUS_INFO}1a", "border": STATUS_INFO, "icon_color": STATUS_INFO},
+}
+
+ALERT_ICONS = {
+    AlertVariant.SUCCESS: "✓",
+    AlertVariant.WARNING: "⚠",
+    AlertVariant.CRITICAL: "✕",
+    AlertVariant.INFO: "ℹ",
+}
+
+
+def alert(
+    title: str,
+    message: str,
+    variant: AlertVariant = AlertVariant.INFO,
+    dismissible: bool = False,
+    key: str = ""
+) -> None:
+    """
+    Render an alert banner.
+
+    Args:
+        title: Alert title
+        message: Alert message
+        variant: Alert variant
+        dismissible: Whether alert can be dismissed
+        key: Unique key for state management
+    """
+    style = ALERT_STYLES[variant]
+    icon = ALERT_ICONS[variant]
+    alert_key = key or f"alert_{id(title)}"
+    dismiss_key = f"{alert_key}_dismissed"
+
+    # Check dismiss state
+    if dismissible and st.session_state.get(dismiss_key, False):
+        return
+
+    dismiss_html = ""
+    if dismissible:
+        dismiss_html = f"""
+<button class="i20-alert-dismiss"
+        onclick="document.getElementById('{alert_key}').style.display='none';
+                window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{dismiss_key}', 'value': true}}, '*');"
+        style="background: none; border: none; color: inherit; cursor: pointer; padding: 4px; line-height: 1; opacity: 0.6; flex-shrink: 0;"
+        aria-label="Dismiss alert">
+  ✕
+</button>
+"""
+
+    st.markdown(f"""
+<div id="{alert_key}" class="i20-alert i20-alert-{variant.value}" style="
+  display: flex;
+  align-items: flex-start;
+  gap: {GAP_FIELD};
+  padding: {SPACE_4};
+  border-radius: {RADIUS_MD};
+  border: 1px solid {style['border']};
+  background-color: {style['bg']};
+">
+  <span class="i20-alert-icon" style="
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: {style['icon_color']};
+    font-weight: bold;
+  ">{icon}</span>
+  <div class="i20-alert-content" style="flex: 1; min-width: 0;">
+    <div class="i20-alert-title" style="
+      font-size: {FONT_SIZE_BODY};
+      font-weight: {FONT_WEIGHT_LABEL};
+      color: {TEXT_PRIMARY};
+      margin-bottom: {SPACE_1};
+    ">{title}</div>
+    <div class="i20-alert-message" style="
+      font-size: {FONT_SIZE_BODY_SM};
+      color: {TEXT_SECONDARY};
+      line-height: 1.5;
+    ">{message}</div>
+  </div>
+  {dismiss_html}
+</div>
+""", unsafe_allow_html=True)
+
+
+# =============================================================================
+# CARD COMPONENT
+# =============================================================================
+
+@dataclass
+class CardProps:
+    """Properties for Card component."""
+    title: str = ""
+    subtitle: str = ""
+    content: str = ""
+    footer: str = ""
+    elevated: bool = False
+    bordered: bool = True
+    padding: str = CARD_PADDING
+    radius: str = CARD_RADIUS
+    class_name: str = ""
+    on_click: Optional[Callable] = None
+
+
+def card(props: CardProps) -> None:
+    """
+    Render a card component.
+
+    Args:
+        props: Card properties
+    """
+    card_key = f"card_{id(props)}"
+
+    shadow = SHADOW_MD if props.elevated else SHADOW_SM
+    border = CARD_BORDER if props.bordered else "none"
+
+    header_html = ""
+    if props.title or props.subtitle:
+        header_html = f"""
+<div class="i20-card-header" style="margin-bottom: {GAP_FIELD};">
+  {f'<h3 class="i20-h4" style="margin: 0;">{props.title}</h3>' if props.title else ''}
+  {f'<p class="i20-body-sm" style="margin: {SPACE_1} 0 0 0;">{props.subtitle}</p>' if props.subtitle else ''}
+</div>
+"""
+
+    footer_html = ""
+    if props.footer:
+        footer_html = f"""
+<div class="i20-card-footer" style="margin-top: {GAP_FIELD}; padding-top: {GAP_FIELD}; border-top: 1px solid {BORDER_SUBTLE};">
+  {props.footer}
+</div>
+"""
+
+    clickable = "cursor: pointer;" if props.on_click else ""
+    onclick = f"onclick=\"window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{card_key}_clicked', 'value': true}}, '*');\"" if props.on_click else ""
+
+    st.markdown(f"""
+<div id="{card_key}" class="i20-card {props.class_name}" style="
+  background-color: {SURFACE_PRIMARY};
+  border: {border};
+  border-radius: {props.radius};
+  padding: {props.padding};
+  box-shadow: {shadow};
+  transition: all {TRANSITION_NORMAL};
+  {clickable}
+" {onclick}>
+  {header_html}
+  <div class="i20-card-content">{props.content}</div>
+  {footer_html}
+</div>
+""", unsafe_allow_html=True)
+
+
+def card_simple(content: str, **kwargs) -> None:
+    """Convenience function for simple card."""
+    card(CardProps(content=content, **kwargs))
+
+
+# =============================================================================
+# FORM COMPONENTS
+# =============================================================================
+
+@dataclass
+class FormFieldProps:
+    """Properties for form field."""
+    label: str
+    help_text: str = ""
+    error_text: str = ""
+    required: bool = False
+    disabled: bool = False
+
+
+def form_field(props: FormFieldProps, input_html: str) -> str:
+    """
+    Generate a form field wrapper with label, input, help, and error.
+
+    Args:
+        props: Form field properties
+        input_html: HTML for the input element
+
+    Returns:
+        Complete form field HTML
+    """
+    required_mark = '<span style="color: var(--i20-color-status-critical); margin-left: 2px;">*</span>' if props.required else ""
+    disabled_class = "i20-field-disabled" if props.disabled else ""
+
+    help_html = f'<div class="i20-field-help">{props.help_text}</div>' if props.help_text else ""
+    error_html = f'<div class="i20-field-error">{props.error_text}</div>' if props.error_text else ""
+
+    return f"""
+<div class="i20-field {disabled_class}" style="display: flex; flex-direction: column; gap: {GAP_FIELD};">
+  <label class="i20-field-label" style="
+    font-size: {FONT_SIZE_LABEL};
+    font-weight: {FONT_WEIGHT_LABEL};
+    color: {TEXT_SECONDARY};
+    letter-spacing: {LETTER_SPACING_LABEL};
+    text-transform: uppercase;
+  ">{props.label}{required_mark}</label>
+  {input_html}
+  {help_html}
+  {error_html}
+</div>
+"""
+
+
+def text_input(
+    label: str,
+    value: str = "",
+    placeholder: str = "",
+    key: str = "",
+    help_text: str = "",
+    error_text: str = "",
+    required: bool = False,
+    disabled: bool = False,
+    type: str = "text",
+    on_change: Optional[Callable] = None,
+) -> str:
+    """
+    Render a text input field.
+
+    Returns the input value.
+    """
+    input_key = key or f"input_{id(label)}"
+
+    # Use Streamlit's native input for functionality
+    result = st.text_input(
+        label,
+        value=value,
+        placeholder=placeholder,
+        key=input_key,
+        disabled=disabled,
+        type=type if type == "password" else "default",
+        help=help_text if not error_text else None,
+        on_change=on_change,
+        label_visibility="collapsed",
+    )
+
+    # Render styled version
+    field_props = FormFieldProps(
+        label=label,
+        help_text=help_text,
+        error_text=error_text,
+        required=required,
+        disabled=disabled,
+    )
+
+    input_html = f"""
+<input type="{type}"
+       class="i20-field-input"
+       value="{value}"
+       placeholder="{placeholder}"
+       {'disabled' if disabled else ''}
+       style="
+         font-family: {FONT_FAMILY_BASE};
+         font-size: {INPUT_FONT_SIZE};
+         height: {INPUT_HEIGHT};
+         padding: {INPUT_PADDING_VERTICAL} {INPUT_PADDING_HORIZONTAL};
+         border-radius: {INPUT_RADIUS};
+         border: 1px solid {BORDER_DEFAULT if not error_text else STATUS_CRITICAL};
+         background-color: {SURFACE_SECONDARY};
+         color: {TEXT_PRIMARY};
+         transition: all {TRANSITION_FAST};
+         width: 100%;
+         {'opacity: 0.5;' if disabled else ''}
+       "
+       aria-invalid="{'true' if error_text else 'false'}"
+       aria-describedby="{input_key}-help" {f'aria-describedby="{input_key}-error"' if error_text else ''}
+       id="{input_key}-input"
+/>
+"""
+
+    if help_text:
+        input_html += f'<div id="{input_key}-help" class="i20-field-help" style="font-size: {FONT_SIZE_CAPTION}; color: {TEXT_MUTED};">{help_text}</div>'
+    if error_text:
+        input_html += f'<div id="{input_key}-error" class="i20-field-error" style="font-size: {FONT_SIZE_CAPTION}; color: {STATUS_CRITICAL};">{error_text}</div>'
+
+    st.markdown(form_field(field_props, input_html), unsafe_allow_html=True)
+
+    return result
+
+
+def selectbox(
+    label: str,
+    options: list[str],
+    index: int = 0,
+    key: str = "",
+    help_text: str = "",
+    error_text: str = "",
+    required: bool = False,
+    disabled: bool = False,
+    on_change: Optional[Callable] = None,
+) -> str:
+    """
+    Render a select box.
+
+    Returns the selected value.
+    """
+    input_key = key or f"select_{id(label)}"
+
+    # Use Streamlit's native selectbox for functionality
+    result = st.selectbox(
+        label,
+        options=options,
+        index=index,
+        key=input_key,
+        disabled=disabled,
+        help=help_text if not error_text else None,
+        on_change=on_change,
+        label_visibility="collapsed",
+    )
+
+    # Render styled version
+    field_props = FormFieldProps(
+        label=label,
+        help_text=help_text,
+        error_text=error_text,
+        required=required,
+        disabled=disabled,
+    )
+
+    options_html = "".join(f'<option value="{opt}" {"selected" if i == index else ""}>{opt}</option>' for i, opt in enumerate(options))
+
+    input_html = f"""
+<select class="i20-field-input"
+        style="
+          font-family: {FONT_FAMILY_BASE};
+          font-size: {INPUT_FONT_SIZE};
+          height: {INPUT_HEIGHT};
+          padding: {INPUT_PADDING_VERTICAL} {INPUT_PADDING_HORIZONTAL};
+          border-radius: {INPUT_RADIUS};
+          border: 1px solid {BORDER_DEFAULT if not error_text else STATUS_CRITICAL};
+          background-color: {SURFACE_SECONDARY};
+          color: {TEXT_PRIMARY};
+          transition: all {TRANSITION_FAST};
+          width: 100%;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239aa3ad' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right {SPACE_3} center;
+          padding-right: {SPACE_6};
+          {'opacity: 0.5;' if disabled else ''}
+        "
+        {'disabled' if disabled else ''}
+        aria-invalid="{'true' if error_text else 'false'}"
+        id="{input_key}-select"
+>
+  {options_html}
+</select>
+"""
+
+    if help_text:
+        input_html += f'<div id="{input_key}-help" class="i20-field-help" style="font-size: {FONT_SIZE_CAPTION}; color: {TEXT_MUTED};">{help_text}</div>'
+    if error_text:
+        input_html += f'<div id="{input_key}-error" class="i20-field-error" style="font-size: {FONT_SIZE_CAPTION}; color: {STATUS_CRITICAL};">{error_text}</div>'
+
+    st.markdown(form_field(field_props, input_html), unsafe_allow_html=True)
+
+    return result
+
+
+# =============================================================================
+# TABLE COMPONENT
+# =============================================================================
+
+@dataclass
+class TableColumn:
+    """Table column definition."""
+    key: str
+    header: str
+    width: str = ""
+    align: Literal["left", "center", "right"] = "left"
+    format: Optional[Callable[[any], str]] = None
+
+
+@dataclass
+class TableProps:
+    """Table component properties."""
+    columns: list[TableColumn]
+    data: list[dict]
+    key: str = ""
+    selectable: bool = False
+    on_row_click: Optional[Callable[[dict], None]] = None
+    empty_message: str = "No data available"
+    striped: bool = True
+    hoverable: bool = True
+
+
+def table(props: TableProps) -> Optional[dict]:
+    """
+    Render a data table.
+
+    Returns the selected row data if selectable and a row was clicked.
+    """
+    table_key = props.key or f"table_{id(props)}"
+    selected_key = f"{table_key}_selected"
+
+    # Build header
+    header_cells = []
+    for col in props.columns:
+        width_style = f"width: {col.width};" if col.width else ""
+        align_style = f"text-align: {col.align};"
+        header_cells.append(f'<th style="{width_style} {align_style} padding: {SPACE_3} {SPACE_4};">{col.header}</th>')
+
+    # Build rows
+    row_html_parts = []
+    for row_idx, row in enumerate(props.data):
+        row_data_attrs = " ".join(f'data-{k}="{v}"' for k, v in row.items() if isinstance(v, (str, int, float)))
+        selected = st.session_state.get(selected_key) == row_idx
+        selected_class = "i20-selected" if selected else ""
+        clickable = "cursor: pointer;" if props.on_row_click or props.selectable else ""
+
+        cells = []
+        for col in props.columns:
+            value = row.get(col.key, "")
+            if col.format:
+                value = col.format(value)
+            align_style = f"text-align: {col.align};"
+            cells.append(f'<td style="{align_style} padding: {SPACE_3} {SPACE_4};">{value}</td>')
+
+        onclick = ""
+        if props.on_row_click or props.selectable:
+            onclick = f"onclick=\"window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{selected_key}', 'value': {row_idx}}}, '*');\""
+
+        row_html_parts.append(f"""
+<tr class="{selected_class}" style="{clickable}" {onclick} {row_data_attrs}>
+  {''.join(cells)}
+</tr>
+""")
+
+    empty_html = ""
+    if not props.data:
+        empty_html = f"""
+<tbody>
+  <tr>
+    <td colspan="{len(props.columns)}" style="padding: {EMPTY_STATE_PADDING}; text-align: center; color: {TEXT_SECONDARY};">
+      {props.empty_message}
+    </td>
+  </tr>
+</tbody>
+"""
+
+    stripe_style = ""
+    if props.striped:
+        stripe_style = f"""
+.i20-table-{table_key} tbody tr:nth-child(even) {{
+  background-color: {SURFACE_SECONDARY};
+}}
+"""
+
+    hover_style = ""
+    if props.hoverable:
+        hover_style = f"""
+.i20-table-{table_key} tbody tr:hover {{
+  background-color: {TABLE_HOVER_BG};
+}}
+"""
+
+    selected_style = f"""
+.i20-table-{table_key} tbody tr.i20-selected {{
+  background-color: {TABLE_SELECTED_BG};
+}}
+"""
+
+    st.markdown(f"""
+<style>
+.i20-table-{table_key} {{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: {TABLE_ROW_FONT_SIZE};
+  color: {TABLE_ROW_FONT_COLOR};
+}}
+.i20-table-{table_key} th {{
+  text-align: left;
+  font-size: {TABLE_HEADER_FONT_SIZE};
+  font-weight: {FONT_WEIGHT_LABEL};
+  color: {TABLE_HEADER_FONT_COLOR};
+  text-transform: uppercase;
+  letter-spacing: {LETTER_SPACING_LABEL};
+  background-color: {TABLE_HEADER_BG};
+  border-bottom: 1px solid {TABLE_BORDER};
+  padding: {SPACE_3} {SPACE_4};
+  white-space: nowrap;
+}}
+.i20-table-{table_key} td {{
+  border-bottom: 1px solid {TABLE_BORDER};
+  padding: {SPACE_3} {SPACE_4};
+}}
+{stripe_style}
+{hover_style}
+{selected_style}
+</style>
+<div style="overflow-x: auto; border: 1px solid {BORDER_SUBTLE}; border-radius: {RADIUS_MD};">
+  <table class="i20-table-{table_key}">
+    <thead>
+      <tr>
+        {''.join(header_cells)}
+      </tr>
+    </thead>
+    {empty_html if not props.data else f'<tbody>{"".join(row_html_parts)}</tbody>'}
+  </table>
+</div>
+""", unsafe_allow_html=True)
+
+    # Return selected row if any
+    if props.selectable and selected_key in st.session_state:
+        selected_idx = st.session_state[selected_key]
+        if selected_idx is not None and 0 <= selected_idx < len(props.data):
+            return props.data[selected_idx]
+
+    return None
+
+
+# =============================================================================
+# EMPTY STATE COMPONENT
+# =============================================================================
+
+@dataclass
+class EmptyStateProps:
+    """Empty state properties."""
+    title: str
+    message: str
+    icon: str = "📭"
+    action_label: str = ""
+    action_callback: Optional[Callable] = None
+    action_key: str = ""
+
+
+def empty_state(props: EmptyStateProps) -> None:
+    """Render an empty state."""
+    empty_key = props.action_key or f"empty_{id(props.title)}"
+
+    action_html = ""
+    if props.action_label and props.action_callback:
+        action_html = f"""
+<button class="i20-btn-primary"
+        onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{empty_key}_action', 'value': true}}, '*');"
+        style="margin-top: {SPACE_4};">
+  {props.action_label}
+</button>
+"""
+
+    st.markdown(f"""
+<div class="i20-empty-state" style="
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: {EMPTY_STATE_PADDING};
+  text-align: center;
+  color: {TEXT_SECONDARY};
+">
+  <div class="i20-empty-state-icon" style="
+    width: {EMPTY_STATE_ICON_SIZE};
+    height: {EMPTY_STATE_ICON_SIZE};
+    margin-bottom: {SPACE_4};
+    color: {TEXT_MUTED};
+    font-size: {EMPTY_STATE_ICON_SIZE};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  ">{props.icon}</div>
+  <h3 class="i20-h3" style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">{props.title}</h3>
+  <p class="i20-body" style="margin: 0; max-width: 400px; line-height: 1.5;">{props.message}</p>
+  {action_html}
+</div>
+""", unsafe_allow_html=True)
+
+
+# =============================================================================
+# LOADING COMPONENTS
+# =============================================================================
+
+def skeleton(height: str = "1rem", width: str = "100%", radius: str = RADIUS_SM, key: str = "") -> None:
+    """Render a skeleton loader."""
+    skeleton_key = key or f"skeleton_{id(height)}"
+
+    st.markdown(f"""
+<style>
+.i20-skeleton-{skeleton_key} {{
+  height: {height};
+  width: {width};
+  border-radius: {radius};
+  background: linear-gradient(
+    90deg,
+    {SURFACE_SECONDARY} 25%,
+    {SURFACE_INTERACTIVE} 50%,
+    {SURFACE_SECONDARY} 75%
+  );
+  background-size: 200% 100%;
+  animation: i20-skeleton-pulse {SKELETON_PULSE_DURATION} ease-in-out infinite;
+}}
+@keyframes i20-skeleton-pulse {{
+  0% {{ background-position: 200% 0; }}
+  100% {{ background-position: -200% 0; }}
+}}
+</style>
+<div class="i20-skeleton-{skeleton_key}"></div>
+""", unsafe_allow_html=True)
+
+
+def skeleton_text(lines: int = 3, key: str = "") -> None:
+    """Render multiple skeleton lines for text content."""
+    for i in range(lines):
+        height = "1rem" if i < lines - 1 else "0.75rem"
+        width = "100%" if i < lines - 1 else "60%"
+        skeleton(height=height, width=width, key=f"{key}_line_{i}")
+
+
+def skeleton_card(key: str = "") -> None:
+    """Render a card skeleton."""
+    card_key = key or f"skeleton_card_{id(key)}"
+
+    st.markdown(f"""
+<div class="i20-card" style="
+  background-color: {SURFACE_PRIMARY};
+  border: 1px solid {BORDER_DEFAULT};
+  border-radius: {CARD_RADIUS};
+  padding: {CARD_PADDING};
+">
+  <div style="display: flex; gap: {GAP_INLINE}; align-items: center; margin-bottom: {GAP_FIELD};">
+    <div class="i20-skeleton-{card_key}-avatar" style="width: 40px; height: 40px; border-radius: 50%;"></div>
+    <div style="flex: 1;">
+      <div class="i20-skeleton-{card_key}-title" style="height: 1rem; width: 60%; border-radius: {RADIUS_SM};"></div>
+      <div class="i20-skeleton-{card_key}-subtitle" style="height: 0.875rem; width: 40%; border-radius: {RADIUS_SM}; margin-top: 4px;"></div>
+    </div>
+  </div>
+  <div class="i20-skeleton-{card_key}-content" style="height: 4rem; border-radius: {RADIUS_SM};"></div>
+</div>
+<style>
+.i20-skeleton-{card_key}-avatar,
+.i20-skeleton-{card_key}-title,
+.i20-skeleton-{card_key}-subtitle,
+.i20-skeleton-{card_key}-content {{
+  background: linear-gradient(
+    90deg,
+    {SURFACE_SECONDARY} 25%,
+    {SURFACE_INTERACTIVE} 50%,
+    {SURFACE_SECONDARY} 75%
+  );
+  background-size: 200% 100%;
+  animation: i20-skeleton-pulse {SKELETON_PULSE_DURATION} ease-in-out infinite;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+
+def spinner(size: Literal["sm", "md", "lg"] = "md", key: str = "") -> None:
+    """Render a spinner."""
+    sizes = {"sm": SPINNER_SIZE_SM, "md": SPINNER_SIZE_MD, "lg": SPINNER_SIZE_LG}
+    spinner_key = key or f"spinner_{id(size)}"
+    spinner_size = sizes[size]
+
+    st.markdown(f"""
+<style>
+.i20-spinner-{spinner_key} {{
+  display: inline-block;
+  width: {spinner_size};
+  height: {spinner_size};
+  border: 2px solid {BORDER_DEFAULT};
+  border-top-color: {ACCENT_PRIMARY};
+  border-radius: 50%;
+  animation: i20-spin 1s linear infinite;
+}}
+@keyframes i20-spin {{
+  to {{ transform: rotate(360deg); }}
+}}
+</style>
+<div class="i20-spinner-{spinner_key}" role="status" aria-label="Loading"></div>
+""", unsafe_allow_html=True)
+
+
+def loading_overlay(message: str = "Loading...", key: str = "") -> None:
+    """Render a full-screen loading overlay."""
+    overlay_key = key or f"loading_overlay_{id(message)}"
+
+    st.markdown(f"""
+<div id="{overlay_key}" class="i20-loading-overlay" style="
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 29, 33, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: {SPACE_4};
+  z-index: 9999;
+  color: {TEXT_PRIMARY};
+">
+  <div class="i20-spinner-{overlay_key}" style="
+    width: {SPINNER_SIZE_LG};
+    height: {SPINNER_SIZE_LG};
+    border: 3px solid {BORDER_DEFAULT};
+    border-top-color: {ACCENT_PRIMARY};
+    border-radius: 50%;
+    animation: i20-spin 1s linear infinite;
+  "></div>
+  <p style="font-size: {FONT_SIZE_BODY}; margin: 0;">{message}</p>
+</div>
+<style>
+@keyframes i20-spin {{
+  to {{ transform: rotate(360deg); }}
+}}
+</style>
+""", unsafe_allow_html=True)
+
+
+# =============================================================================
+# WIZARD COMPONENT
+# =============================================================================
+
+@dataclass
+class WizardStep:
+    """Wizard step definition."""
+    label: str
+    icon: str = ""
+    completed: bool = False
+    active: bool = False
+    error: bool = False
+
+
+@dataclass
+class WizardProps:
+    """Wizard component properties."""
+    steps: list[WizardStep]
+    current_step: int
+    content: str
+    next_label: str = "Next"
+    prev_label: str = "Back"
+    finish_label: str = "Finish"
+    on_next: Optional[Callable] = None
+    on_prev: Optional[Callable] = None
+    on_finish: Optional[Callable] = None
+    key: str = ""
+
+
+def wizard(props: WizardProps) -> None:
+    """Render a wizard stepper with content."""
+    wizard_key = props.key or f"wizard_{id(props)}"
+
+    # Build step indicators
+    step_items = []
+    for i, step in enumerate(props.steps):
+        step_num = i + 1
+        is_last = i == len(props.steps) - 1
+
+        circle_class = ""
+        if step.error:
+            circle_class = "error"
+        elif step.completed:
+            circle_class = "completed"
+        elif step.active:
+            circle_class = "active"
+
+        circle_bg = {
+            "completed": STATUS_SUCCESS,
+            "active": ACCENT_PRIMARY,
+            "error": STATUS_CRITICAL,
+        }.get(circle_class, SURFACE_SECONDARY)
+
+        circle_border = {
+            "completed": STATUS_SUCCESS,
+            "active": ACCENT_PRIMARY,
+            "error": STATUS_CRITICAL,
+        }.get(circle_class, BORDER_DEFAULT)
+
+        circle_color = TEXT_ON_ACCENT if circle_class in ("completed", "active", "error") else TEXT_MUTED
+
+        label_color = {
+            "completed": TEXT_SECONDARY,
+            "active": ACCENT_PRIMARY,
+            "error": STATUS_CRITICAL,
+        }.get(circle_class, TEXT_MUTED)
+
+        connector = ""
+        if not is_last:
+            connector = f'<div class="i20-wizard-connector" style="flex: 1; height: 2px; background: {BORDER_DEFAULT}; position: absolute; top: 16px; left: 48px; right: -48px; z-index: 0;"></div>'
+
+        step_items.append(f"""
+<div class="i20-wizard-step" style="display: flex; flex-direction: column; align-items: center; gap: {SPACE_2}; position: relative; z-index: 1; flex: 1; text-align: center; min-width: 80px;">
+  {connector}
+  <div class="i20-wizard-step-circle {circle_class}" style="
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: {FONT_SIZE_LABEL};
+    font-weight: {FONT_WEIGHT_LABEL};
+    background-color: {circle_bg};
+    border: 2px solid {circle_border};
+    color: {circle_color};
+    transition: all {TRANSITION_NORMAL};
+  ">
+    {step.icon or step_num}
+  </div>
+  <div class="i20-wizard-step-label" style="
+    font-size: {FONT_SIZE_CAPTION};
+    font-weight: {FONT_WEIGHT_LABEL};
+    color: {label_color};
+    text-transform: uppercase;
+    letter-spacing: {LETTER_SPACING_CAPTION};
+    white-space: nowrap;
+  ">{step.label}</div>
+</div>
+""")
+
+    # Navigation buttons
+    is_first = props.current_step == 0
+    is_last = props.current_step == len(props.steps) - 1
+
+    prev_disabled = is_first
+    next_label = props.finish_label if is_last else props.next_label
+
+    st.markdown(f"""
+<div class="i20-wizard" style="
+  background-color: {SURFACE_PRIMARY};
+  border: 1px solid {BORDER_DEFAULT};
+  border-radius: {WIZARD_CARD_RADIUS};
+  box-shadow: {WIZARD_CARD_SHADOW};
+  padding: {WIZARD_CARD_PADDING};
+">
+  <div class="i20-wizard-steps" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: {SPACE_6}; position: relative;">
+    {''.join(step_items)}
+  </div>
+  <div class="i20-wizard-content" style="min-height: 200px;">
+    {props.content}
+  </div>
+  <div class="i20-wizard-actions" style="display: flex; justify-content: space-between; margin-top: {SPACE_6}; padding-top: {SPACE_4}; border-top: 1px solid {BORDER_SUBTLE};">
+    <button class="i20-btn i20-btn-secondary"
+            {'disabled' if prev_disabled else ''}
+            onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{wizard_key}_prev', 'value': true}}, '*');"
+            style="height: {BUTTON_MIN_HEIGHT}; padding: {BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL}; border-radius: {BUTTON_RADIUS}; font-size: {BUTTON_FONT_SIZE}; font-weight: {BUTTON_FONT_WEIGHT}; background: {SURFACE_PRIMARY}; color: {TEXT_PRIMARY}; border: 1px solid {BORDER_DEFAULT}; cursor: {'not-allowed' if prev_disabled else 'pointer'}; opacity: {0.5 if prev_disabled else 1}; transition: all {TRANSITION_FAST};">
+      {props.prev_label}
+    </button>
+    <button class="i20-btn i20-btn-primary"
+            onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{wizard_key}_next', 'value': true}}, '*');"
+            style="height: {BUTTON_MIN_HEIGHT}; padding: {BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL}; border-radius: {BUTTON_RADIUS}; font-size: {BUTTON_FONT_SIZE}; font-weight: {BUTTON_FONT_WEIGHT}; background: {ACCENT_PRIMARY}; color: {TEXT_ON_ACCENT}; border: none; cursor: pointer; transition: all {TRANSITION_FAST};">
+      {next_label}
+    </button>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # Handle button clicks via session state
+    prev_clicked = st.session_state.get(f"{wizard_key}_prev", False)
+    next_clicked = st.session_state.get(f"{wizard_key}_next", False)
+
+    if prev_clicked:
+        st.session_state[f"{wizard_key}_prev"] = False
+        if props.on_prev:
+            props.on_prev()
+
+    if next_clicked:
+        st.session_state[f"{wizard_key}_next"] = False
+        if is_last and props.on_finish:
+            props.on_finish()
+        elif props.on_next:
+            props.on_next()
+
+
+# =============================================================================
+# SIDEBAR COMPONENTS
+# =============================================================================
+
+@dataclass
+class SidebarNavItem:
+    """Sidebar navigation item."""
+    label: str
+    icon: str
+    page: str
+    badge: str = ""
+    description: str = ""
+
+
+@dataclass
+class SidebarProps:
+    """Sidebar properties."""
+    nav_items: list[SidebarNavItem]
+    current_page: str
+    vehicle_info: dict = None
+    obd_status: dict = None
+    ai_status: dict = None
+    simulation_status: dict = None
+    collapsed: bool = False
+    mobile_open: bool = False
+    on_navigate: Optional[Callable[[str], None]] = None
+    on_toggle_collapse: Optional[Callable] = None
+    on_toggle_mobile: Optional[Callable] = None
+
+
+def sidebar(props: SidebarProps) -> None:
+    """Render the sidebar navigation with mobile drawer support."""
+    sidebar_key = "i20_sidebar"
+
+    # Vehicle info section
+    vehicle_html = ""
+    if props.vehicle_info:
+        vehicle_html = f"""
+<div class="i20-sidebar-section" style="padding: {SPACE_4} 0; border-bottom: 1px solid {BORDER_SUBTLE}; margin-bottom: {GAP_SIDEBAR};">
+  <h3 class="i20-label" style="margin: 0 0 {SPACE_3} 0;">Vehicle</h3>
+  <div class="i20-vehicle-info" style="font-size: {FONT_SIZE_BODY_SM}; color: {TEXT_SECONDARY}; line-height: 1.6;">
+    <div><strong>{props.vehicle_info.get('make', '')} {props.vehicle_info.get('model', '')}</strong></div>
+    <div>{props.vehicle_info.get('year', '')} · {props.vehicle_info.get('engine', '')}</div>
+    <div class="i20-code-sm" style="margin-top: {SPACE_2};">{props.vehicle_info.get('vin', 'N/A')}</div>
+  </div>
+</div>
+"""
+
+    # Status indicators
+    status_html = ""
+    statuses = [
+        ("OBD", props.obd_status),
+        ("Data", props.simulation_status),
+        ("AI", props.ai_status),
+    ]
+
+    if any(s[1] for s in statuses):
+        status_items = []
+        for label, status in statuses:
+            if not status:
+                continue
+            connected = status.get("connected", False)
+            status_text = status.get("text", "Unknown")
+            status_color = STATUS_SUCCESS if connected else STATUS_WARNING
+            status_dot = "●"
+
+            status_items.append(f"""
+<div class="i20-status-item" style="display: flex; align-items: center; gap: {GAP_INLINE}; font-size: {FONT_SIZE_BODY_SM}; color: {TEXT_SECONDARY};">
+  <span style="color: {status_color}; font-size: 0.75rem;">{status_dot}</span>
+  <span>{label}</span>
+  <span style="margin-left: auto; color: {status_color}; font-weight: {FONT_WEIGHT_LABEL};">{status_text}</span>
+</div>
+""")
+
+        status_html = f"""
+<div class="i20-sidebar-section" style="padding: {SPACE_4} 0; border-bottom: 1px solid {BORDER_SUBTLE}; margin-bottom: {GAP_SIDEBAR};">
+  <h3 class="i20-label" style="margin: 0 0 {SPACE_3} 0;">Status</h3>
+  <div style="display: flex; flex-direction: column; gap: {SPACE_2};">
+    {''.join(status_items)}
+  </div>
+</div>
+"""
+
+    # Navigation
+    nav_items_html = []
+    for item in props.nav_items:
+        active = item.page == props.current_page
+        badge_html = f'<span class="i20-badge i20-badge-primary" style="font-size: 0.6rem; margin-left: auto;">{item.badge}</span>' if item.badge else ""
+
+        # Use a button that sets session state
+        nav_items_html.append(f"""
+<button class="i20-nav-item {'i20-nav-item-active' if active else ''}"
+        style="display: flex; align-items: center; gap: {GAP_INLINE}; width: 100%; padding: {SPACE_2} {SPACE_3}; border-radius: {RADIUS_SM}; color: {ACCENT_PRIMARY if active else TEXT_PRIMARY}; background: {'var(--i20-color-accent-selected)' if active else 'transparent'}; border: none; cursor: pointer; text-align: left; transition: all {TRANSITION_FAST}; font-size: {FONT_SIZE_BODY}; font-weight: {FONT_WEIGHT_BODY}; font-family: {FONT_FAMILY_BASE};"
+        onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{sidebar_key}_nav', 'value': '{item.page}'}}, '*');"
+        aria-current="{'page' if active else 'false'}">
+  <span style="font-size: 1.25rem; flex-shrink: 0;">{item.icon}</span>
+  <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{item.label}</span>
+  {badge_html}
+</button>
+""")
+
+    # Collapse toggle (desktop)
+    collapse_btn = f"""
+<button class="i20-sidebar-toggle"
+        onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{sidebar_key}_toggle', 'value': true}}, '*');"
+        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: {SPACE_2}; padding: {SPACE_2}; margin-top: {SPACE_4}; background: none; border: 1px solid {BORDER_DEFAULT}; border-radius: {RADIUS_SM}; color: {TEXT_SECONDARY}; font-size: {FONT_SIZE_CAPTION}; cursor: pointer; transition: all {TRANSITION_FAST};">
+  <span>{'◀' if not props.collapsed else '▶'}</span>
+  <span>{'Collapse' if not props.collapsed else 'Expand'}</span>
+</button>
+"""
+
+    # Mobile close button
+    mobile_close_btn = f"""
+<button class="i20-sidebar-mobile-close"
+        onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{sidebar_key}_mobile_close', 'value': true}}, '*');"
+        style="position: absolute; top: {SPACE_3}; right: {SPACE_3}; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; border-radius: {RADIUS_SM}; color: {TEXT_SECONDARY}; font-size: 1.5rem; cursor: pointer; transition: all {TRANSITION_FAST}; z-index: 10;">
+  <span>×</span>
+</button>
+"""
+
+    # Determine sidebar mode
+    is_mobile_drawer = props.mobile_open
+    sidebar_width = SIDEBAR_WIDTH_COLLAPSED if props.collapsed else SIDEBAR_WIDTH_EXPANDED
+
+    st.markdown(f"""
+<style>
+.i20-nav-item:hover:not(.i20-nav-item-active) {{
+  background: {SURFACE_INTERACTIVE} !important;
+}}
+.i20-nav-item:focus-visible {{
+  outline: none;
+  box-shadow: {SHADOW_FOCUS};
+}}
+.i20-sidebar-toggle:hover {{
+  border-color: {ACCENT_PRIMARY} !important;
+  color: {ACCENT_PRIMARY} !important;
+}}
+.i20-sidebar-mobile-close:hover {{
+  background: {SURFACE_INTERACTIVE} !important;
+  color: {TEXT_PRIMARY} !important;
+}}
+/* Mobile drawer styles */
+.i20-sidebar-drawer {{
+  position: fixed !important;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: {SIDEBAR_WIDTH_EXPANDED};
+  background-color: {SURFACE_SECONDARY};
+  border-right: 1px solid {BORDER_DEFAULT};
+  z-index: 400;
+  transform: translateX(-100%);
+  transition: transform {SIDEBAR_TRANSITION};
+  overflow-y: auto;
+  padding: {SPACE_4};
+  box-shadow: {SHADOW_LG};
+}}
+.i20-sidebar-drawer.open {{
+  transform: translateX(0);
+}}
+.i20-sidebar-backdrop {{
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 300;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity {TRANSITION_FAST}, visibility {TRANSITION_FAST};
+}}
+.i20-sidebar-backdrop.open {{
+  opacity: 1;
+  visibility: visible;
+}}
+</style>
+<div class="i20-sidebar i20-sidebar-drawer {'open' if is_mobile_drawer else ''}"
+     style="width: {sidebar_width};">
+  {mobile_close_btn if is_mobile_drawer else ''}
+  {vehicle_html}
+  {status_html}
+  <nav class="i20-sidebar-nav" style="display: flex; flex-direction: column; gap: {SPACE_1};">
+    {''.join(nav_items_html)}
+  </nav>
+  {collapse_btn if not is_mobile_drawer else ''}
+</div>
+{'<div class="i20-sidebar-backdrop ' + ('open' if is_mobile_drawer else '') + '"></div>' if is_mobile_drawer else ''}
+""", unsafe_allow_html=True)
+
+    # Handle navigation
+    nav_key = f"{sidebar_key}_nav"
+    if nav_key in st.session_state:
+        selected_page = st.session_state[nav_key]
+        if selected_page and props.on_navigate:
+            props.on_navigate(selected_page)
+            st.session_state[nav_key] = None
+
+    # Handle collapse toggle
+    toggle_key = f"{sidebar_key}_toggle"
+    if st.session_state.get(toggle_key, False):
+        st.session_state[toggle_key] = False
+        if props.on_toggle_collapse:
+            props.on_toggle_collapse()
+
+    # Handle mobile close
+    mobile_close_key = f"{sidebar_key}_mobile_close"
+    if st.session_state.get(mobile_close_key, False):
+        st.session_state[mobile_close_key] = False
+        if props.on_toggle_mobile:
+            props.on_toggle_mobile()
+
+
+# =============================================================================
+# TOP BAR COMPONENT
+# =============================================================================
+
+@dataclass
+class TopBarProps:
+    """Top bar properties."""
+    page_title: str
+    breadcrumb: list[tuple[str, str]] = None
+    actions: list[dict] = None  # [{label, variant, on_click, key, icon}]
+    status_indicators: list[dict] = None  # [{label, status, key}]
+    on_mobile_menu: Optional[Callable] = None
+
+
+def top_bar(props: TopBarProps) -> None:
+    """Render the top bar."""
+    # Breadcrumb
+    breadcrumb_html = ""
+    if props.breadcrumb:
+        crumbs = []
+        for i, (label, href) in enumerate(props.breadcrumb):
+            if i == len(props.breadcrumb) - 1:
+                crumbs.append(f'<span class="i20-breadcrumb-current" style="color: {TEXT_SECONDARY}; font-weight: {FONT_WEIGHT_LABEL};">{label}</span>')
+            else:
+                crumbs.append(f'<a href="{href}" class="i20-breadcrumb-item" style="color: {TEXT_MUTED}; text-decoration: none; font-size: {FONT_SIZE_CAPTION};">{label}</a>')
+        separator = ' <span style="color: var(--i20-color-text-muted);">/</span> '
+        breadcrumb_html = f'<nav class="i20-breadcrumb" style="display: flex; align-items: center; gap: {SPACE_2}; font-size: {FONT_SIZE_CAPTION};">{separator.join(crumbs)}</nav>'
+
+    # Actions
+    actions_html = ""
+    if props.actions:
+        action_buttons = []
+        for action in props.actions:
+            variant = action.get("variant", "secondary")
+            icon = action.get("icon", "")
+            key = action.get("key", f"action_{id(action)}")
+
+            variant_styles = {
+                "primary": f"background: {ACCENT_PRIMARY}; color: {TEXT_ON_ACCENT}; border: none;",
+                "secondary": f"background: {SURFACE_PRIMARY}; color: {TEXT_PRIMARY}; border: 1px solid {BORDER_DEFAULT};",
+                "ghost": f"background: transparent; color: {TEXT_PRIMARY}; border: none;",
+                "danger": f"background: {STATUS_CRITICAL}; color: {TEXT_ON_ACCENT}; border: none;",
+            }
+            style = variant_styles.get(variant, variant_styles["secondary"])
+
+            icon_html = f'<span style="display: flex; align-items: center;">{icon}</span>' if icon else ""
+
+            action_buttons.append(f"""
+<button class="i20-btn i20-btn-{variant}"
+        onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{key}', 'value': true}}, '*');"
+        style="height: {BUTTON_MIN_HEIGHT}; padding: {BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL}; border-radius: {BUTTON_RADIUS}; font-size: {BUTTON_FONT_SIZE}; font-weight: {BUTTON_FONT_WEIGHT}; font-family: {FONT_FAMILY_BASE}; display: inline-flex; align-items: center; gap: {BUTTON_ICON_GAP}; {style} cursor: pointer; transition: all {TRANSITION_FAST};">
+  {icon_html}
+  <span>{action['label']}</span>
+</button>
+""")
+        actions_html = f'<div class="i20-top-bar-actions" style="display: flex; align-items: center; gap: {GAP_INLINE};">{"".join(action_buttons)}</div>'
+
+    # Status indicators
+    status_html = ""
+    if props.status_indicators:
+        status_items = []
+        for status in props.status_indicators:
+            label = status.get("label", "")
+            status_type = status.get("status", "neutral")
+            key = status.get("key", f"status_{id(status)}")
+
+            status_colors = {
+                "success": STATUS_SUCCESS,
+                "warning": STATUS_WARNING,
+                "critical": STATUS_CRITICAL,
+                "info": STATUS_INFO,
+                "neutral": STATUS_NEUTRAL,
+            }
+            color = status_colors.get(status_type, STATUS_NEUTRAL)
+
+            status_items.append(f"""
+<div class="i20-status-indicator" style="display: flex; align-items: center; gap: {SPACE_1}; font-size: {FONT_SIZE_CAPTION}; color: {TEXT_SECONDARY};">
+  <span style="width: 8px; height: 8px; border-radius: 50%; background: {color};"></span>
+  <span>{label}</span>
+</div>
+""")
+        status_html = f'<div class="i20-top-bar-status" style="display: flex; align-items: center; gap: {GAP_FIELD};">{"".join(status_items)}</div>'
+
+    # Mobile menu button
+    mobile_menu_btn = f"""
+<button class="i20-top-bar-mobile-menu"
+    onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': 'i20_mobile_menu', 'value': true}}, '*');"
+    style="display: none; width: 44px; height: 44px; align-items: center; justify-content: center; background: none; border: none; border-radius: {RADIUS_SM}; color: {TEXT_PRIMARY}; font-size: 1.5rem; cursor: pointer; transition: all {TRANSITION_FAST};">
+  <span>☰</span>
+</button>
+"""
+
+    st.markdown(f"""
+<style>
+.i20-top-bar-mobile-menu:hover {{
+  background: {SURFACE_INTERACTIVE} !important;
+}}
+@media (max-width: 767px) {{
+  .i20-top-bar-mobile-menu {{
+    display: flex !important;
+  }}
+}}
+</style>
+<header class="i20-top-bar" style="
+  height: {TOP_BAR_HEIGHT};
+  background: {TOP_BAR_BG};
+  border-bottom: {TOP_BAR_BORDER};
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 {PADDING_PAGE};
+  position: sticky;
+  top: 0;
+  z-index: 100;
+">
+  <div class="i20-top-bar-left" style="display: flex; align-items: center; gap: {GAP_FIELD};">
+    {mobile_menu_btn}
+    {breadcrumb_html}
+    <h1 class="i20-h3" style="margin: 0;">{props.page_title}</h1>
+  </div>
+  <div class="i20-top-bar-right" style="display: flex; align-items: center; gap: {GAP_FIELD};">
+    {status_html}
+    {actions_html}
+  </div>
+</header>
+""", unsafe_allow_html=True)
+
+    # Handle action clicks
+    if props.actions:
+        for action in props.actions:
+            key = action.get("key", f"action_{id(action)}")
+            if st.session_state.get(key, False):
+                st.session_state[key] = False
+                if action.get("on_click"):
+                    action["on_click"]()
+
+    # Handle mobile menu click
+    if st.session_state.get("i20_mobile_menu", False):
+        st.session_state["i20_mobile_menu"] = False
+        if props.on_mobile_menu:
+            props.on_mobile_menu()
+
+
+# =============================================================================
+# EXPORTS
+# =============================================================================
+
+__all__ = [
+    # Button
+    "ButtonVariant",
+    "ButtonSize",
+    "ButtonProps",
+    "button",
+    "button_primary",
+    "button_secondary",
+    "button_ghost",
+    "button_danger",
+    # Badge
+    "BadgeVariant",
+    "badge",
+    # Alert
+    "AlertVariant",
+    "alert",
+    # Card
+    "CardProps",
+    "card",
+    "card_simple",
+    # Form
+    "FormFieldProps",
+    "form_field",
+    "text_input",
+    "selectbox",
+    # Table
+    "TableColumn",
+    "TableProps",
+    "table",
+    # Empty State
+    "EmptyStateProps",
+    "empty_state",
+    # Loading
+    "skeleton",
+    "skeleton_text",
+    "skeleton_card",
+    "spinner",
+    "loading_overlay",
+    # Wizard
+    "WizardStep",
+    "WizardProps",
+    "wizard",
+    # Sidebar
+    "SidebarNavItem",
+    "SidebarProps",
+    "sidebar",
+    # Top Bar
+    "TopBarProps",
+    "top_bar",
+]

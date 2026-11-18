@@ -1,0 +1,249 @@
+# General / Sensor Rules
+# Detects sensor failures, data quality issues, and general vehicle health
+
+rules:
+  # Threshold Rule - Engine RPM Too High at Idle
+  - rule_id: "RULE_HIGH_IDLE_RPM"
+    name: "High Idle RPM"
+    description: "Detects abnormally high engine RPM at idle"
+    category: "general"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 5
+    confidence: 0.8
+    conditions:
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "greater_than"
+        threshold: 1000
+        condition_group: "high_idle"
+      - sensor_name: "vehicle_speed_kmh"
+        sensor_unit: "km/h"
+        operator: "equal"
+        threshold: 0
+        condition_group: "vehicle_stopped"
+    explanation_template: "Engine idling at {engine_rpm} RPM (normal: 650-850 RPM) while vehicle stopped"
+    recommended_checks:
+      - "Check for vacuum leaks"
+      - "Inspect idle air control valve"
+      - "Check throttle position sensor"
+      - "Verify no aftermarket modifications affecting idle"
+    recommended_actions:
+      - "Clean throttle body and IAC valve"
+      - "Repair vacuum leaks"
+      - "Replace TPS if faulty"
+      - "Reset ECU idle learning"
+    safety_notes:
+      - "High idle wastes fuel and increases emissions"
+      - "May indicate vacuum leak causing lean condition"
+    source: "generic_obd"
+    dtc_hints: ["P0505", "P0506", "P0507", "P0122", "P0123"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - Engine RPM Redline
+  - rule_id: "RULE_ENGINE_OVERSPEED"
+    name: "Engine Overspeed / Redline Exceeded"
+    description: "Detects engine RPM exceeding redline"
+    category: "general"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "critical"
+    priority: 1
+    confidence: 0.95
+    conditions:
+      - sensor_name: "engine_rpm"
+        sensor_unit: "RPM"
+        operator: "greater_than"
+        threshold: 6500
+    explanation_template: "CRITICAL: Engine RPM reached {observed_value} RPM, exceeding redline of {threshold} RPM"
+    recommended_checks:
+      - "Verify RPM reading accuracy"
+      - "Check for transmission slip causing false high RPM"
+    recommended_actions:
+      - "Reduce engine speed immediately"
+      - "Investigate cause of overspeed"
+    safety_notes:
+      - "Engine damage likely at sustained overspeed"
+      - "Valve float and connecting rod failure risk"
+    source: "hyundai_specific"
+    dtc_hints: ["P0219"]
+    cooldown_seconds: 60
+
+  # Correlation Rule - Sensor Voltage Out of Range
+  - rule_id: "RULE_SENSOR_VOLTAGE_FAULT"
+    name: "Sensor Voltage Out of Range"
+    description: "Detects sensor reference voltage faults (5V or 12V reference)"
+    category: "sensor"
+    rule_type: "correlation"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.8
+    conditions:
+      - sensor_name: "sensor_ref_voltage_5v"
+        sensor_unit: "V"
+        operator: "outside"
+        threshold_min: 4.5
+        threshold_max: 5.5
+        condition_group: "ref_5v_fault"
+      - sensor_name: "sensor_ref_voltage_12v"
+        sensor_unit: "V"
+        operator: "outside"
+        threshold_min: 11.0
+        threshold_max: 14.5
+        condition_group: "ref_12v_fault"
+    explanation_template: "Sensor reference voltage fault: 5V ref = {sensor_ref_voltage_5v}V, 12V ref = {sensor_ref_voltage_12v}V"
+    recommended_checks:
+      - "Check ECU power and ground connections"
+      - "Inspect sensor wiring for shorts to power/ground"
+      - "Test individual sensor current draw"
+    recommended_actions:
+      - "Repair wiring harness faults"
+      - "Replace shorted sensors"
+      - "Check ECU voltage regulators"
+    safety_notes:
+      - "Reference voltage faults affect multiple sensors"
+      - "Can cause erratic engine operation"
+    source: "generic_obd"
+    dtc_hints: ["P0641", "P0651", "P0661", "P0697", "P0698", "P0699"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - MAF Sensor Frequency Out of Range
+  - rule_id: "RULE_MAF_SENSOR_FAULT"
+    name: "MAF Sensor Signal Fault"
+    description: "Detects MAF sensor frequency/voltage out of expected range"
+    category: "sensor"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.85
+    conditions:
+      - sensor_name: "maf_frequency_hz"
+        sensor_unit: "Hz"
+        operator: "outside"
+        threshold_min: 100.0
+        threshold_max: 12000.0
+    explanation_template: "MAF sensor frequency {observed_value} Hz outside normal range ({threshold_min}-{threshold_max} Hz)"
+    recommended_checks:
+      - "Inspect MAF sensor for contamination"
+      - "Check MAF sensor wiring"
+      - "Verify air filter not restricted"
+      - "Check for intake leaks after MAF"
+    recommended_actions:
+      - "Clean MAF sensor with MAF cleaner"
+      - "Replace MAF sensor if cleaning doesn't help"
+      - "Replace air filter"
+      - "Repair intake leaks"
+    safety_notes:
+      - "Faulty MAF causes incorrect fuel metering"
+      - "Can cause lean/rich conditions and poor performance"
+    source: "generic_obd"
+    dtc_hints: ["P0100", "P0101", "P0102", "P0103", "P0104"]
+    cooldown_seconds: 300
+
+  # Threshold Rule - TPS Voltage Out of Range
+  - rule_id: "RULE_TPS_FAULT"
+    name: "Throttle Position Sensor Fault"
+    description: "Detects TPS voltage outside expected range"
+    category: "sensor"
+    rule_type: "threshold"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 4
+    confidence: 0.85
+    conditions:
+      - sensor_name: "throttle_position_pct"
+        sensor_unit: "%"
+        operator: "outside"
+        threshold_min: 0.5
+        threshold_max: 99.5
+    explanation_template: "TPS reading {observed_value}% outside valid range (0.5%-99.5%)"
+    recommended_checks:
+      - "Check TPS mounting and adjustment"
+      - "Inspect TPS wiring for damage"
+      - "Test TPS voltage sweep with throttle movement"
+    recommended_actions:
+      - "Adjust TPS if adjustable"
+      - "Replace TPS if faulty"
+      - "Repair wiring harness"
+    safety_notes:
+      - "TPS fault affects transmission shifts and fuel delivery"
+      - "May cause limp mode activation"
+    source: "generic_obd"
+    dtc_hints: ["P0120", "P0121", "P0122", "P0123", "P0124"]
+    cooldown_seconds: 300
+
+  # Trend Rule - Battery Voltage Dropping
+  - rule_id: "RULE_BATTERY_DRAIN"
+    name: "Battery Voltage Dropping Over Time"
+    description: "Detects battery voltage declining while engine running"
+    category: "electrical"
+    rule_type: "trend"
+    enabled: true
+    version: "1.0"
+    severity: "medium"
+    priority: 5
+    confidence: 0.7
+    conditions:
+      - sensor_name: "battery_voltage_v"
+        sensor_unit: "V"
+        trend_operator: "decreasing"
+        trend_window_seconds: 120
+        min_samples: 10
+        max_gap_seconds: 30
+    explanation_template: "Battery voltage declining over {trend_window_seconds}s while engine running - possible charging issue"
+    recommended_checks:
+      - "Check alternator output voltage"
+      - "Test battery load capacity"
+      - "Check for parasitic draw"
+      - "Inspect belt tension and condition"
+    recommended_actions:
+      - "Replace alternator if not charging"
+      - "Replace battery if failed load test"
+      - "Repair parasitic draw"
+      - "Replace serpentine belt if slipping"
+    safety_notes:
+      - "Continued voltage drop will lead to stall/no-start"
+    source: "generic_obd"
+    dtc_hints: ["P0562", "P0563", "P0620", "P0621", "P0622"]
+    cooldown_seconds: 300
+
+  # Composite Rule - Multiple Sensor Failures
+  - rule_id: "RULE_MULTIPLE_SENSOR_FAILURES"
+    name: "Multiple Simultaneous Sensor Failures"
+    description: "Composite rule detecting multiple sensor failures indicating systemic issue"
+    category: "sensor"
+    rule_type: "composite"
+    enabled: true
+    version: "1.0"
+    severity: "high"
+    priority: 2
+    confidence: 0.85
+    referenced_rule_ids:
+      - "RULE_SENSOR_VOLTAGE_FAULT"
+      - "RULE_MAF_SENSOR_FAULT"
+      - "RULE_TPS_FAULT"
+    composite_logic: "or"
+    explanation_template: "Multiple sensor faults detected: {triggered_rules} - suggests wiring harness or ECU issue"
+    recommended_checks:
+      - "Check ECU power and ground"
+      - "Inspect main engine wiring harness"
+      - "Check for rodent damage to wiring"
+      - "Test ECU voltage outputs"
+    recommended_actions:
+      - "Repair wiring harness"
+      - "Replace ECU if internal fault"
+      - "Replace damaged sensors"
+    safety_notes:
+      - "Multiple sensor faults often share common cause"
+      - "Do not replace sensors without checking wiring first"
+    source: "generic_obd"
+    dtc_hints: ["P0600", "P0601", "P0602", "P0603", "P0604", "P0605"]
+    cooldown_seconds: 600

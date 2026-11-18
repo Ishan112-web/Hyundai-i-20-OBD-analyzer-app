@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% set report_title = "Performance Report" %}
+
+{% block content %}
+<!-- Session Summary -->
+<section class="report-section">
+    <h2 class="section-title">Session Summary</h2>
+    <div class="kv-grid">
+        <div class="kv-item">
+            <div class="kv-label">Session ID</div>
+            <div class="kv-value">{{ session.session_id }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Session Name</div>
+            <div class="kv-value">{{ session.session_name }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Scenario</div>
+            <div class="kv-value">{{ session.scenario }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Start Time</div>
+            <div class="kv-value">{{ session.start_time.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+        </div>
+        {% if session.end_time %}
+        <div class="kv-item">
+            <div class="kv-label">End Time</div>
+            <div class="kv-value">{{ session.end_time.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+        </div>
+        {% endif %}
+        {% if session.duration_seconds %}
+        <div class="kv-item">
+            <div class="kv-label">Duration</div>
+            <div class="kv-value">{{ "%.1f"|format(session.duration_seconds / 60) }} min ({{ "%.0f"|format(session.duration_seconds) }} sec)</div>
+        </div>
+        {% endif %}
+        <div class="kv-item">
+            <div class="kv-label">Records</div>
+            <div class="kv-value">{{ session.record_count }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Data Source</div>
+            <div class="kv-value">
+                <span class="data-source-badge {{ session.data_source.value.lower() }}">{{ session.data_source.value }}</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Key Performance Metrics -->
+<section class="report-section">
+    <h2 class="section-title">Key Performance Metrics</h2>
+    <div class="kv-grid">
+        {% if session.peak_rpm is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Peak RPM</div>
+            <div class="kv-value">{{ "%.0f"|format(session.peak_rpm) }} RPM</div>
+        </div>
+        {% endif %}
+        {% if session.max_speed_kmh is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Max Speed</div>
+            <div class="kv-value">{{ "%.1f"|format(session.max_speed_kmh) }} km/h</div>
+        </div>
+        {% endif %}
+        {% if session.avg_speed_kmh is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Avg Speed</div>
+            <div class="kv-value">{{ "%.1f"|format(session.avg_speed_kmh) }} km/h</div>
+        </div>
+        {% endif %}
+        {% if session.max_coolant_temp_c is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Max Coolant Temp</div>
+            <div class="kv-value">{{ "%.1f"|format(session.max_coolant_temp_c) }} °C</div>
+        </div>
+        {% endif %}
+        {% if session.max_engine_load_pct is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Max Engine Load</div>
+            <div class="kv-value">{{ "%.1f"|format(session.max_engine_load_pct) }}%</div>
+        </div>
+        {% endif %}
+        {% if session.total_distance_km is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Distance</div>
+            <div class="kv-value">{{ "%.2f"|format(session.total_distance_km) }} km</div>
+        </div>
+        {% endif %}
+        {% if session.fuel_consumed_l is not none %}
+        <div class="kv-item">
+            <div class="kv-label">Fuel Consumed</div>
+            <div class="kv-value">{{ "%.2f"|format(session.fuel_consumed_l) }} L</div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Sensor Statistics -->
+{% if sensor_statistics %}
+<section class="report-section">
+    <h2 class="section-title">Sensor Statistics</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sensor</th>
+                    <th>Unit</th>
+                    <th>Count</th>
+                    <th>Min</th>
+                    <th>Max</th>
+                    <th>Average</th>
+                    <th>Std Dev</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in sensor_statistics %}
+                <tr>
+                    <td><strong>{{ stat.sensor_name }}</strong></td>
+                    <td>{{ stat.unit }}</td>
+                    <td>{{ stat.count }}</td>
+                    <td>{{ "%.2f"|format(stat.min_value) if stat.min_value is not none else '—' }}</td>
+                    <td>{{ "%.2f"|format(stat.max_value) if stat.max_value is not none else '—' }}</td>
+                    <td>{{ "%.2f"|format(stat.avg_value) if stat.avg_value is not none else '—' }}</td>
+                    <td>{{ "%.2f"|format(stat.std_dev) if stat.std_dev is not none else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Time Series Data Summary -->
+{% if charts_data %}
+<section class="report-section">
+    <h2 class="section-title">Time-Series Data Availability</h2>
+    <p class="section-subtitle">The following sensors have time-series data available for charting</p>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sensor</th>
+                    <th>Data Points</th>
+                    <th>Time Range</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sensor, data_points in charts_data.items() %}
+                <tr>
+                    <td><strong>{{ sensor }}</strong></td>
+                    <td>{{ data_points|length }}</td>
+                    <td>
+                        {% if data_points %}
+                        {{ data_points[0].timestamp }} to {{ data_points[-1].timestamp }}
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-16" style="font-size: 0.85rem; color: var(--text-secondary);">
+        Note: Charts are rendered in the interactive HTML view. PDF reports include tabular summaries above.
+        For full interactive charts, view the HTML report in a browser.
+    </div>
+</section>
+{% endif %}
+{% endblock %}

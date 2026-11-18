@@ -1,0 +1,22 @@
+{
+  "COM3:38400:AUTO": {
+    "port": "COM3",
+    "baudrate": 38400,
+    "protocol": "AUTO",
+    "adapter_type": "usb",
+    "friendly_name": "Test",
+    "last_connected": "2026-11-18T14:13:42.189713",
+    "success_count": 363,
+    "failure_count": 0
+  },
+  "COM3:38400:auto": {
+    "port": "COM3",
+    "baudrate": 38400,
+    "protocol": "auto",
+    "adapter_type": "usb",
+    "friendly_name": "COM3 @ 38400",
+    "last_connected": "2026-11-18T14:13:52.619455",
+    "success_count": 83,
+    "failure_count": 0
+  }
+}

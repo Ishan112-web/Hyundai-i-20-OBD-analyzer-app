@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% set report_title = "Maintenance Report" %}
+
+{% block content %}
+<!-- Vehicle & Odometer -->
+<section class="report-section">
+    <h2 class="section-title">Current Vehicle Status</h2>
+    <div class="kv-grid">
+        {% if vehicle_info.odometer_km %}
+        <div class="kv-item">
+            <div class="kv-label">Current Odometer</div>
+            <div class="kv-value">{{ vehicle_info.odometer_km }} km</div>
+        </div>
+        {% elif odometer_km %}
+        <div class="kv-item">
+            <div class="kv-label">Current Odometer</div>
+            <div class="kv-value">{{ odometer_km }} km</div>
+        </div>
+        {% else %}
+        <div class="kv-item">
+            <div class="kv-label">Current Odometer</div>
+            <div class="kv-value">Unknown</div>
+        </div>
+        {% endif %}
+        <div class="kv-item">
+            <div class="kv-label">Total Records</div>
+            <div class="kv-value">{{ summary.total_records }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Total Cost</div>
+            <div class="kv-value">₹{{ "{:,.2f}".format(summary.total_cost_inr) }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Upcoming Items</div>
+            <div class="kv-value">{{ summary.upcoming_count }}</div>
+        </div>
+        <div class="kv-item">
+            <div class="kv-label">Overdue Items</div>
+            <div class="kv-value">
+                {% if summary.overdue_count > 0 %}
+                <span style="color: var(--accent-red); font-weight: 700;">{{ summary.overdue_count }}</span>
+                {% else %}
+                {{ summary.overdue_count }}
+                {% endif %}
+            </div>
+        </div>
+        {% if summary.last_service_date %}
+        <div class="kv-item">
+            <div class="kv-label">Last Service</div>
+            <div class="kv-value">{{ summary.last_service_date }}</div>
+        </div>
+        {% endif %}
+        {% if summary.last_service_odometer %}
+        <div class="kv-item">
+            <div class="kv-label">Last Service Odometer</div>
+            <div class="kv-value">{{ summary.last_service_odometer }} km</div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Cost Summary by Category -->
+{% if summary.cost_by_category %}
+<section class="report-section">
+    <h2 class="section-title">Cost Summary by Category</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service Category</th>
+                    <th>Total Cost (INR)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category, cost in summary.cost_by_category.items() %}
+                <tr>
+                    <td>{{ category }}</td>
+                    <td>₹{{ "{:,.2f}".format(cost) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Overdue Maintenance -->
+{% if overdue_items %}
+<section class="report-section">
+    <h2 class="section-title">⚠️ Overdue Maintenance</h2>
+    <p class="section-subtitle">These items are past their due date or odometer interval</p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service Type</th>
+                    <th>Last Service Date</th>
+                    <th>Last Odometer</th>
+                    <th>Due Date</th>
+                    <th>Due Odometer</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in overdue_items %}
+                <tr>
+                    <td><strong>{{ item.service_type }}</strong></td>
+                    <td>{{ item.service_date }}</td>
+                    <td>{{ item.odometer_km }} km</td>
+                    <td style="color: var(--accent-red);">{{ item.next_service_date or '—' }}</td>
+                    <td style="color: var(--accent-red);">{{ item.next_service_km if item.next_service_km else '—' }} km</td>
+                    <td>{{ item.description or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Upcoming Maintenance -->
+{% if upcoming_items %}
+<section class="report-section">
+    <h2 class="section-title">📅 Upcoming Maintenance</h2>
+    <p class="section-subtitle">Items due within the next service interval</p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service Type</th>
+                    <th>Last Service Date</th>
+                    <th>Last Odometer</th>
+                    <th>Due Date</th>
+                    <th>Due Odometer</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in upcoming_items %}
+                <tr>
+                    <td>{{ item.service_type }}</td>
+                    <td>{{ item.service_date }}</td>
+                    <td>{{ item.odometer_km }} km</td>
+                    <td>{{ item.next_service_date or '—' }}</td>
+                    <td>{{ item.next_service_km if item.next_service_km else '—' }} km</td>
+                    <td>{{ item.description or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Complete Maintenance History -->
+{% if maintenance_history %}
+<section class="report-section">
+    <h2 class="section-title">Complete Maintenance History</h2>
+    <p class="section-subtitle">{{ maintenance_history|length }} total service record(s)</p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Service Type</th>
+                    <th>Description</th>
+                    <th>Odometer</th>
+                    <th>Cost (INR)</th>
+                    <th>Next Due Date</th>
+                    <th>Next Due Odometer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in maintenance_history %}
+                <tr>
+                    <td>{{ record.service_date }}</td>
+                    <td>{{ record.service_type }}</td>
+                    <td>{{ record.description or '—' }}</td>
+                    <td>{{ record.odometer_km }} km</td>
+                    <td>{{ "₹{:,.2f}".format(record.cost) if record.cost else '—' }}</td>
+                    <td>{{ record.next_service_date or '—' }}</td>
+                    <td>{{ record.next_service_km if record.next_service_km else '—' }} km</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<!-- Maintenance Intervals Reference -->
+<section class="report-section">
+    <h2 class="section-title">Manufacturer Recommended Intervals (Reference)</h2>
+    <p class="section-subtitle">Standard intervals for Hyundai i20 Asta 2023 1.2L Petrol (India market)</p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Service Item</th>
+                    <th>Interval</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Engine Oil Change</td><td>10,000 km</td><td>Engine Oil Change</td></tr>
+                <tr><td>Oil Filter Replacement</td><td>10,000 km</td><td>Oil Filter Replacement</td></tr>
+                <tr><td>Air Filter Replacement</td><td>20,000 km</td><td>Air Filter Replacement</td></tr>
+                <tr><td>Cabin Air Filter</td><td>15,000 km</td><td>Cabin Air Filter Replacement</td></tr>
+                <tr><td>Spark Plug Replacement</td><td>40,000 km</td><td>Spark Plug Replacement</td></tr>
+                <tr><td>Coolant Replacement</td><td>60,000 km</td><td>Coolant Replacement</td></tr>
+                <tr><td>Brake Fluid Replacement</td><td>40,000 km</td><td>Brake Fluid Replacement</td></tr>
+                <tr><td>Manual Transmission Oil</td><td>60,000 km</td><td>Manual Transmission Oil</td></tr>
+                <tr><td>Front Brake Pads Inspection</td><td>30,000 km</td><td>Front Brake Pads Inspection</td></tr>
+                <tr><td>Rear Brake Pads Inspection</td><td>40,000 km</td><td>Rear Brake Pads Inspection</td></tr>
+                <tr><td>Tyre Rotation</td><td>10,000 km</td><td>Tyre Rotation</td></tr>
+                <tr><td>Battery Health Check</td><td>40,000 km</td><td>Battery Health Check</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-16" style="font-size: 0.8rem; color: var(--text-secondary);">
+        Note: Intervals are manufacturer recommendations for normal driving conditions.
+        Severe conditions (dust, extreme temperatures, short trips) may require more frequent service.
+        Always refer to your vehicle's owner's manual for authoritative service schedules.
+    </div>
+</section>
+{% endblock %}
