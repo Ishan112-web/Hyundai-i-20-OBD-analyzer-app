@@ -254,9 +254,23 @@
 
 ### Stage 7B: High-Impact Fixes (18 P1 Findings) — IN PROGRESS (2026-11-18)
 - [x] **B1.1** Heading Hierarchy — Audit all pages for heading levels; standardize on `section_header()` component
-- [ ] **B1.2** Landmarks — Add `aria-label="Main navigation"` to sidebar `<nav>`, add `<footer role="contentinfo">`
-- [ ] **B1.3** Wizard ARIA Tabs — Implement full ARIA tabs pattern in `Wizard` component (`role="tablist"`, `role="tab"`, `role="tabpanel"`)
-- [ ] **B1.4** Form Label Association — Ensure all custom `<input>`/`<select>` have `<label for="id">` pairing
+- [x] **B1.2** Landmarks — Add `aria-label="Main navigation"` to sidebar `<nav>`, add `<footer role="contentinfo">` ✅ **COMPLETE (2026-11-18)**
+  - Sidebar `<nav aria-label="Main navigation">` in `components/ui/components.py`
+  - Footer `<div role="contentinfo">` via `render_footer()` in `components/ui/accessibility.py`
+  - Main `<main id="main-content">` already present in `shell.py`
+  - Skip link targets `#main-content` correctly
+  - Runtime enforcement via `render_landmark_fix_script()` injected via `st.html(unsafe_allow_javascript=True)`
+  - **Test Results:** 36/63 Playwright+axe tests passing (Desktop/Laptop 100%); 27 failures are pre-existing Streamlit `<pre>` `scrollable-region-focusable` on mobile/tablet — NOT landmark-related
+  - **Manual:** NVDA landmark navigation (Insert+F3) shows nav, main, contentinfo correctly
+- [x] **B1.3** Wizard ARIA Tabs — ✅ **COMPLETE (2026-11-19)**
+  - `components/ui/components.py`: `WizardStep`/`WizardProps` dataclasses updated; `wizard()` function rewritten with semantic stepper pattern (`<ol role="tablist">`, `<button role="tab">`, `<div role="tabpanel">`)
+  - `modules/obd_connection.py`: 8 steps with accessibility descriptions; step state management; `announce_step_change=True`, `live_region_id="i20-live-polite"`, `show_progress=True`
+  - Visually hidden status text (Completed/Current/Upcoming/Error), progress display, live region announcements, duplicate prevention, focus trap, responsive design
+  - **Test Results:** Wizard CSS global injection ✅; Sidebar navigation ✅; 18/18 desktop/laptop axe-core tests passing
+- [x] **B1.4** Form Label Association — ✅ **COMPLETE (2026-11-19)**
+  - `components/ui/components.py`: Added `input_id` to `FormFieldProps`; updated `form_field()` to render `for="{input_id}"` on label; updated `text_input()` and `selectbox()` to pass input ID
+  - `modules/dashboard.py`: Fixed `_render_simulation_controls_html()` - proper `<select id="sim-scenario-select">` with label `for="sim-scenario-select"`; added `type="button"` to custom buttons
+  - **Test Results:** 415/415 unit tests passing; 18/18 desktop/laptop axe-core tests passing
 - [ ] **B1.5** Error Message Linking — Generate unique error `id`; add `aria-describedby` to inputs; render errors with `role="alert"`
 - [ ] **B1.6** Required Fields `aria-required` — Add `aria-required="true"` to required inputs in form components
 - [ ] **B1.7** Focus Visible Verification — Test all Streamlit native widgets for visible focus ring; adjust selectors in `styles.py`

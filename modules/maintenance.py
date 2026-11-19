@@ -704,6 +704,12 @@ def _render_maintenance_form(db, record: Optional[Dict], dup_data: Optional[Dict
 
 def _render_quick_add_buttons():
     """Render quick add buttons for common services - RESPONSIVE."""
+    # Live region for quick-add announcements
+    quick_add_live_region_id = "maint-quick-add-live"
+    st.markdown(f'''
+    <div id="{quick_add_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Quick add status"></div>
+    ''', unsafe_allow_html=True)
+
     st.markdown(f'<div style="margin-top: {GAP_SECTION};">', unsafe_allow_html=True)
     st.markdown(f'<div style="font-size: {FONT_SIZE_LABEL}; font-weight: {FONT_WEIGHT_LABEL}; text-transform: uppercase; letter-spacing: {LETTER_SPACING_LABEL}; color: {TEXT_SECONDARY}; margin-bottom: {SPACE_3};">Quick Add Common Services</div>', unsafe_allow_html=True)
     st.caption("Pre-filled forms for common maintenance items")
@@ -726,7 +732,32 @@ def _render_quick_add_buttons():
 
     for svc_type, svc_desc in quick_services:
         key = f"quick_{svc_type.lower().replace(' ', '_').replace('/', '_')}"
-        if button_ghost(f"+ {svc_type}", key=key, size=ButtonSize.SM, use_container_width=True):
+        # Use custom button with aria-label and keyboard support
+        btn_html = f'''
+        <button id="{key}_btn" class="i20-btn-quick-add" type="button" aria-label="Add {svc_type} maintenance record"
+            style="
+                width: 100%; height: {BUTTON_MIN_HEIGHT}; padding: {BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL};
+                border-radius: {BUTTON_RADIUS}; font-size: {BUTTON_FONT_SIZE}; font-weight: {BUTTON_FONT_WEIGHT};
+                background: {SURFACE_INTERACTIVE}; color: {TEXT_PRIMARY}; border: 1px solid {BORDER_DEFAULT};
+                cursor: pointer; transition: all {TRANSITION_FAST}; display: inline-flex; align-items: center; justify-content: center; gap: {BUTTON_ICON_GAP};
+            "
+            onfocus="this.style.outline='2px solid {BORDER_FOCUS}'; this.style.outlineOffset='2px';"
+            onblur="this.style.outline=''; this.style.outlineOffset='';"
+            onclick="window.parent.postMessage({{type: 'streamlit:setComponentValue', key: '{key}', value: true}}, '*');
+                (function() {{
+                    const region = document.getElementById('{quick_add_live_region_id}');
+                    if (region) {{
+                        region.textContent = 'Opened form for {svc_type}';
+                    }}
+                }})();">
+            + {svc_type}
+        </button>
+        '''
+        st.markdown(btn_html, unsafe_allow_html=True)
+
+        # Handle button click via session state
+        if st.session_state.get(key, False):
+            st.session_state[key] = False
             st.session_state.maint_dup_data = {
                 "service_type": svc_type,
                 "description": svc_desc,

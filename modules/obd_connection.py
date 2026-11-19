@@ -102,15 +102,48 @@ def render_obd_connection():
         icon="🔌"
     )
 
-    # Wizard steps definition
+    # Wizard steps definition - 8 steps with full accessibility support
     wizard_steps = [
-        WizardStep(label="Mode", icon="1"),
-        WizardStep(label="Discover", icon="2"),
-        WizardStep(label="Select", icon="3"),
-        WizardStep(label="Connect", icon="4"),
-        WizardStep(label="ECU", icon="5"),
-        WizardStep(label="PIDs", icon="6"),
-        WizardStep(label="Done", icon="7"),
+        WizardStep(
+            label="Mode",
+            icon="1",
+            description="Select OBD connection mode: Simulation or Real OBD-II hardware"
+        ),
+        WizardStep(
+            label="Discover",
+            icon="2",
+            description="Scan for available serial ports and ELM327 adapters"
+        ),
+        WizardStep(
+            label="Select",
+            icon="3",
+            description="Choose the serial port and configure connection parameters"
+        ),
+        WizardStep(
+            label="Connect",
+            icon="4",
+            description="Establish connection to the ELM327 adapter and vehicle ECU"
+        ),
+        WizardStep(
+            label="ECU",
+            icon="5",
+            description="Detect vehicle ECU and read identification information (VIN, CALID, CVN)"
+        ),
+        WizardStep(
+            label="PIDs",
+            icon="6",
+            description="Discover supported Parameter IDs (PIDs) for real-time data"
+        ),
+        WizardStep(
+            label="Success",
+            icon="7",
+            description="Connection successful - ready for diagnostics"
+        ),
+        WizardStep(
+            label="Error",
+            icon="8",
+            description="Connection failed - view troubleshooting steps and retry options"
+        ),
     ]
 
     # Build step content based on current step
@@ -149,7 +182,27 @@ def render_obd_connection():
     elif st.session_state.wizard_step == 8:
         step_content = render_step_error(obd_service)
 
-    # Render wizard component
+    # Update step states based on current step
+    for i, step in enumerate(wizard_steps):
+        if i < current_step_idx:
+            step.completed = True
+            step.active = False
+            step.error = False
+        elif i == current_step_idx:
+            step.completed = False
+            step.active = True
+            step.error = False
+        else:
+            step.completed = False
+            step.active = False
+            step.error = False
+
+    # Mark error step if on step 8 (error)
+    if st.session_state.wizard_step == 8:
+        wizard_steps[7].error = True
+        wizard_steps[7].active = True
+
+    # Render wizard component with accessibility features
     wizard_props = WizardProps(
         steps=wizard_steps,
         current_step=current_step_idx,
@@ -160,7 +213,10 @@ def render_obd_connection():
         on_next=wizard_next,
         on_prev=wizard_prev,
         on_finish=wizard_finish,
-        key="obd_wizard"
+        key="obd_wizard",
+        announce_step_change=True,
+        live_region_id="i20-live-polite",
+        show_progress=True,
     )
     wizard(wizard_props)
 
@@ -490,7 +546,7 @@ def render_step_connection(obd_service) -> str:
             return f"""
 <div style="text-align: center; padding: {SPACE_6};">
   <div style="font-size: 4rem; color: {STATUS_SUCCESS}; margin-bottom: {SPACE_3};">✅</div>
-  <h2 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connected Successfully!</h2>
+  <h3 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connected Successfully!</h3>
   <p style="color: {TEXT_SECONDARY}; font-size: {FONT_SIZE_BODY_LG}; margin: 0;">ELM327 adapter connected and ready.</p>
   <div style="margin-top: {SPACE_6};">
   </div>
@@ -511,7 +567,7 @@ def render_step_connection(obd_service) -> str:
             return f"""
 <div style="text-align: center; padding: {SPACE_6};">
   <div style="font-size: 4rem; color: {STATUS_CRITICAL}; margin-bottom: {SPACE_3};">❌</div>
-  <h2 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connection Failed</h2>
+  <h3 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connection Failed</h3>
   <p style="color: {TEXT_SECONDARY}; font-size: {FONT_SIZE_BODY_LG}; margin: 0;">Unable to connect to the OBD-II adapter.</p>
   <div style="margin-top: {SPACE_6}; display: flex; gap: {GAP_FIELD}; justify-content: center; flex-wrap: wrap;">
   </div>
@@ -523,7 +579,7 @@ def render_step_connection(obd_service) -> str:
 {detail_cards}
 <div style="text-align: center; padding: {SPACE_6};">
   <div style="font-size: 3rem; color: {ACCENT_PRIMARY}; margin-bottom: {SPACE_3};">🔌</div>
-  <h2 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connecting...</h2>
+  <h3 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connecting...</h3>
   <p style="color: {TEXT_SECONDARY}; margin: 0;">Establishing connection to ELM327 adapter and vehicle ECU...</p>
 </div>
 """
@@ -633,7 +689,7 @@ def render_step_pid_discovery(obd_service) -> str:
         return f"""
 <div style="text-align: center; padding: {SPACE_6};">
   <div style="font-size: 3rem; color: {ACCENT_PRIMARY}; margin-bottom: {SPACE_3};">📋</div>
-  <h2 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Discovering Supported PIDs</h2>
+  <h3 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Discovering Supported PIDs</h3>
   <p style="color: {TEXT_SECONDARY}; margin: 0;">Querying the ECU to determine which PIDs are supported...</p>
 </div>
 """
@@ -783,7 +839,7 @@ def render_step_success(obd_service) -> str:
 <div style="display: flex; flex-direction: column; gap: {GAP_SECTION};">
   <div style="text-align: center; padding: {SPACE_6};">
     <div style="font-size: 4rem; color: {STATUS_SUCCESS}; margin-bottom: {SPACE_3};">✅</div>
-    <h2 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connected Successfully!</h2>
+    <h3 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connected Successfully!</h3>
     <p style="color: {TEXT_SECONDARY}; font-size: {FONT_SIZE_BODY_LG}; margin: 0;">Your Hyundai i20 is now connected and ready for real-time diagnostics.</p>
   </div>
   <div>
@@ -850,11 +906,11 @@ def render_step_error(obd_service) -> str:
 <div style="display: flex; flex-direction: column; gap: {GAP_SECTION};">
   <div style="text-align: center; padding: {SPACE_6};">
     <div style="font-size: 4rem; color: {STATUS_CRITICAL}; margin-bottom: {SPACE_3};">❌</div>
-    <h2 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connection Failed</h2>
+    <h3 style="margin: 0 0 {SPACE_2} 0; color: {TEXT_PRIMARY};">Connection Failed</h3>
     <p style="color: {TEXT_SECONDARY}; font-size: {FONT_SIZE_BODY_LG}; margin: 0;">Unable to connect to the OBD-II adapter. Please check the troubleshooting steps below.</p>
   </div>
   <div>
-    <h3 style="margin: 0 0 {SPACE_3} 0; color: {TEXT_PRIMARY};">Troubleshooting</h3>
+    <h4 style="margin: 0 0 {SPACE_3} 0; color: {TEXT_PRIMARY};">Troubleshooting</h4>
     <div style="display: flex; flex-direction: column; gap: {GAP_FIELD};">
       {''.join(trouble_cards)}
     </div>

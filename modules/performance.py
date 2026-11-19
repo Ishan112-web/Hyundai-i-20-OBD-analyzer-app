@@ -59,7 +59,7 @@ from components.ui.components import (
     empty_state, EmptyStateProps,
     table, TableProps, TableColumn,
     spinner, skeleton, skeleton_card,
-    selectbox,
+    selectbox, text_input,
 )
 from components.ui.layout import section_header
 
@@ -70,6 +70,7 @@ from components.charts_v2 import (
     create_gauge, GaugeConfig,
     create_sparkline, SparklineConfig,
     create_status_indicator,
+    ACCESSIBLE_CHART_CONFIG,
 )
 
 from components.ui.layout import (
@@ -263,7 +264,11 @@ def _render_live_telemetry_tab():
 
 
 def _render_recording_controls_panel():
-    """Render recording controls using design system buttons and alert - RESPONSIVE."""
+    """Render recording controls using design system buttons and alert - RESPONSIVE with B1.12 live region."""
+    # Live region for recording status announcements (B1.12)
+    recording_live_region_id = "perf-recording-live"
+    st.markdown(f'<div id="{recording_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Recording status"></div>', unsafe_allow_html=True)
+
     card_simple(
         title="Session Recording Controls",
         content="",
@@ -275,12 +280,12 @@ def _render_recording_controls_panel():
     with col1:
         if button_primary("▶ Start Recording", key="live_start_recording",
                           disabled=st.session_state.sim_running, use_container_width=True):
-            _start_recording(get_database())
+            _start_recording(get_database(), recording_live_region_id)
 
     with col2:
         if button_secondary("■ Stop Recording", key="live_stop_recording",
                             disabled=not st.session_state.sim_running, use_container_width=True):
-            _stop_recording()
+            _stop_recording(recording_live_region_id)
 
     with col3:
         if button_secondary("💾 Save Session", key="live_save_session",
@@ -347,7 +352,7 @@ def _render_rpm_chart(df: pd.DataFrame):
         content="",
         footer=""
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -379,7 +384,7 @@ def _render_speed_chart(df: pd.DataFrame):
         content="",
         footer=""
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -417,7 +422,7 @@ def _render_coolant_chart(df: pd.DataFrame):
         content="",
         footer=""
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -449,7 +454,7 @@ def _render_engine_load_chart(df: pd.DataFrame):
         content="",
         footer=""
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -481,7 +486,7 @@ def _render_throttle_chart(df: pd.DataFrame):
         content="",
         footer=""
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -535,7 +540,7 @@ def _render_fuel_trim_chart(df: pd.DataFrame):
         content="",
         footer=""
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -858,7 +863,7 @@ def _render_histogram_card(title: str, data: pd.Series, bins: int, color: str,
         content="",
         footer=""
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -897,9 +902,13 @@ def _render_sessions_tab(db: DatabaseService):
 
 
 def _render_session_recording_panel(db: DatabaseService):
-    """Render session recording controls panel - RESPONSIVE."""
+    """Render session recording controls panel - RESPONSIVE with B1.12 live region."""
     obd = get_obd_service()
     status = obd.get_status()
+
+    # Live region for recording status announcements (B1.12)
+    recording_live_region_id = "perf-recording-live"
+    st.markdown(f'<div id="{recording_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Recording status"></div>', unsafe_allow_html=True)
 
     card_simple(
         title="Session Recording Controls",
@@ -910,11 +919,10 @@ def _render_session_recording_panel(db: DatabaseService):
     # Session name and scenario inputs - responsive
     col_name, col_scenario = st.columns([2, 1], gap="medium")
     with col_name:
-        session_name = st.text_input(
+        session_name = text_input(
             "Session Name",
             placeholder="My Session",
             key="session_name_input",
-            label_visibility="collapsed"
         )
     with col_scenario:
         scenario = selectbox(
@@ -935,12 +943,12 @@ def _render_session_recording_panel(db: DatabaseService):
     with col1:
         if button_primary("▶ Start Recording", key="sess_start_recording",
                           disabled=st.session_state.sim_running, use_container_width=True):
-            _start_recording(db, session_name or f"{scenario.title()} - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+            _start_recording(db, session_name or f"{scenario.title()} - {datetime.now().strftime('%Y-%m-%d %H:%M')}", recording_live_region_id)
 
     with col2:
         if button_secondary("■ Stop Recording", key="sess_stop_recording",
                             disabled=not st.session_state.sim_running, use_container_width=True):
-            _stop_recording()
+            _stop_recording(recording_live_region_id)
 
     with col3:
         if button_secondary("💾 Save Session", key="sess_save_session",
@@ -1236,7 +1244,7 @@ def _render_comparison_selector(db: DatabaseService):
             options_list = ["(none)"] + list(session_options.keys())
             # Filter out already selected
             available = [o for o in options_list if o == "(none)" or session_options.get(o) not in selected_ids]
-            selected = st.selectbox(
+            selected = selectbox(
                 f"Session {i+1}",
                 options=available,
                 index=0,
@@ -1356,7 +1364,7 @@ def _render_comparison_chart_card(title: str, session_data: Dict, session_info: 
         content="",
         footer=""
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
     st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -1426,8 +1434,8 @@ def _render_comparison_summary_table(session_data: Dict, session_info: Dict):
 # SESSION WORKFLOW FUNCTIONS (Preserved from original)
 # ============================================================================
 
-def _start_recording(db: DatabaseService, session_name: Optional[str] = None):
-    """Start a new recording session."""
+def _start_recording(db: DatabaseService, session_name: Optional[str] = None, live_region_id: str = "perf-recording-live"):
+    """Start a new recording session with B1.12 live region announcement."""
     obd = get_obd_service()
     status = obd.get_status()
 
@@ -1446,6 +1454,19 @@ def _start_recording(db: DatabaseService, session_name: Optional[str] = None):
             st.session_state.telemetry_history = []
             st.session_state.last_update = time.time()
             st.success(f"Recording started: {scenario}")
+
+            # Announce recording start (B1.12)
+            announce_script = f'''
+            <script>
+            (function() {{
+                const region = document.getElementById('{live_region_id}');
+                if (region) {{
+                    region.textContent = 'Recording started for session {session_id}';
+                }}
+            }})();
+            </script>
+            '''
+            st.markdown(announce_script, unsafe_allow_html=True)
             st.rerun()
         else:
             st.error("Failed to start simulation")
@@ -1456,15 +1477,44 @@ def _start_recording(db: DatabaseService, session_name: Optional[str] = None):
         st.session_state.telemetry_history = []
         st.session_state.last_update = time.time()
         st.success(f"Recording attached to running simulation: {scenario}")
+
+        # Announce recording start (B1.12)
+        announce_script = f'''
+        <script>
+        (function() {{
+            const region = document.getElementById('{live_region_id}');
+            if (region) {{
+                region.textContent = 'Recording attached to session {session_id}';
+            }}
+        }})();
+        </script>
+        '''
+        st.markdown(announce_script, unsafe_allow_html=True)
         st.rerun()
 
 
-def _stop_recording():
-    """Stop the current recording."""
+def _stop_recording(live_region_id: str = "perf-recording-live"):
+    """Stop the current recording with B1.12 live region announcement."""
     obd = get_obd_service()
+    session_id = st.session_state.session_id
     obd.stop_simulation()
     st.session_state.sim_running = False
     st.success("Recording stopped")
+
+    # Announce recording stop (B1.12)
+    if session_id:
+        announce_script = f'''
+        <script>
+        (function() {{
+            const region = document.getElementById('{live_region_id}');
+            if (region) {{
+                region.textContent = 'Recording stopped for session {session_id}';
+            }}
+        }})();
+        </script>
+        '''
+        st.markdown(announce_script, unsafe_allow_html=True)
+
     st.rerun()
 
 

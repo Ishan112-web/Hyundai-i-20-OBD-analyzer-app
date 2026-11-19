@@ -63,6 +63,19 @@ from .ui.accessibility import (
 
 
 # =============================================================================
+# ACCESSIBLE CHART CONFIG
+# =============================================================================
+# WCAG 2.1 AA: Enable keyboard navigation for all charts
+# - displayModeBar: True enables keyboard access to mode bar
+# - staticPlot: False allows interaction (zoom, pan, hover)
+# - responsive: True makes charts responsive
+ACCESSIBLE_CHART_CONFIG: Final[dict] = {
+    "displayModeBar": True,
+    "staticPlot": False,
+    "responsive": True,
+}
+
+# =============================================================================
 # CHART COLOR REGISTRY
 # =============================================================================
 

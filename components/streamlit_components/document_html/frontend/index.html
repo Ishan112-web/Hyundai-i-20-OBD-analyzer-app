@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Document HTML Component</title>
+    <script src="https://unpkg.com/@streamlit/component-lib@1.0.0/dist/streamlit-component-lib.js"></script>
+</head>
+<body>
+    <div id="root" style="display: none;"></div>
+    <script>
+        // This component injects HTML at the PARENT document level (top-level window)
+        const root = document.getElementById('root');
+
+        // Get the parent document (the Streamlit app's document)
+        const parentDoc = window.parent.document;
+        const parentWindow = window.parent;
+
+        function injectHtml(html) {
+            if (!html) return;
+
+            // Create a temporary container to parse the HTML
+            const template = parentDoc.createElement('template');
+            template.innerHTML = html.trim();
+
+            // Inject each child node into the appropriate place in parent document
+            const nodes = Array.from(template.content.childNodes);
+
+            nodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    const tagName = node.tagName.toLowerCase();
+
+                    // Scripts and styles go to parent head
+                    if (tagName === 'script' || tagName === 'style' || tagName === 'link' || tagName === 'meta') {
+                        parentDoc.head.appendChild(node.cloneNode(true));
+                    }
+                    // Other elements go to parent body
+                    else {
+                        parentDoc.body.appendChild(node.cloneNode(true));
+                    }
+                }
+                // Text nodes go to parent body
+                else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                    parentDoc.body.appendChild(node.cloneNode(true));
+                }
+            });
+        }
+
+        // Handle messages from Streamlit
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'streamlit:component:message') {
+                const data = event.data.data;
+                if (data && data.args && data.args.html) {
+                    injectHtml(data.args.html);
+                }
+            }
+        });
+
+        // Also listen for the component value
+        if (window.StreamlitComponent) {
+            window.StreamlitComponent.setComponentReady(root);
+            window.StreamlitComponent.onRender((event) => {
+                if (event.detail && event.detail.args && event.detail.args.html) {
+                    injectHtml(event.detail.args.html);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -216,7 +216,7 @@ def render_ai_header(ai):
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: {SPACE_4};">
             <div style="display: flex; align-items: center; gap: {SPACE_3};">
                 <span style="font-size: 2rem;">🤖</span>
-                <h2 style="margin: 0; font-size: var(--i20-font-size-h3); color: {TEXT_PRIMARY};">i20 AI Assistant</h2>
+                <span style="font-size: var(--i20-font-size-h3); font-weight: var(--i20-font-weight-h3); color: {TEXT_PRIMARY};">i20 AI Assistant</span>
             </div>
             <div style="text-align: right;">
                 {badge(label=status_text, variant=status_variant, key="ai_header_status")}
@@ -402,7 +402,6 @@ def render_ai_diagnostic_result(result: DiagnosticResult):
         subtitle="",
         content=f"""
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: {GAP_FIELD}; flex-wrap: wrap; gap: {SPACE_2};">
-            <h3 style="margin: 0;">AI Diagnostic Result</h3>
             {badge(label=data_source_label, variant=data_source_variant, key="diag_source")}
         </div>
 
@@ -600,24 +599,29 @@ def _get_severity_color_hex(severity: DiagnosticSeverity) -> str:
 
 
 def render_chat_interface(ai, db):
-    """Render the main chat interface using design system - RESPONSIVE."""
-    # Messages area using a card container
-    card(CardProps(
-        title="",
-        subtitle="",
-        content=_render_chat_messages(),
-        elevated=False,
-        bordered=True,
-        class_name="chat-messages-container",
-    ))
+    """Render the main chat interface using design system - RESPONSIVE with B1.9 accessibility."""
+    # Live region for chat announcements (new messages, loading state)
+    chat_live_region_id = "ai-chat-live"
+    loading_live_region_id = "ai-loading-live"
+
+    # Messages area with ARIA live region for conversation
+    messages_html = _render_chat_messages()
+    card_html = f"""
+    <div class="chat-messages-container i20-card" style="max-height: 500px; overflow-y: auto; padding: {SPACE_4}; display: flex; flex-direction: column; gap: {GAP_FIELD};" role="log" aria-live="polite" aria-label="Conversation history" aria-atomic="false">
+        {messages_html}
+    </div>
+    <div id="{chat_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Chat messages"></div>
+    <div id="{loading_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="assertive" aria-atomic="true" aria-label="AI status"></div>
+    """
+    st.markdown(card_html, unsafe_allow_html=True)
 
     # Input area - RESPONSIVE
     st.markdown(f"<div style='margin-top: {GAP_FIELD};'></div>", unsafe_allow_html=True)
-    _render_chat_input(ai, db)
+    _render_chat_input(ai, db, chat_live_region_id, loading_live_region_id)
 
 
 def _render_chat_messages() -> str:
-    """Render chat messages as HTML string for card content."""
+    """Render chat messages as HTML string for card content with B1.9 accessibility."""
     # Load conversation history from database on first load
     if not st.session_state.ai_messages and not st.session_state.get("ai_history_loaded"):
         db = get_database()
@@ -631,22 +635,18 @@ def _render_chat_messages() -> str:
         st.session_state.ai_history_loaded = True
 
     messages_html = ""
-    for msg in st.session_state.ai_messages:
-        messages_html += _render_message_html(msg)
+    for i, msg in enumerate(st.session_state.ai_messages):
+        messages_html += _render_message_html(msg, i)
 
     # Show loading indicator
     if st.session_state.ai_loading:
         messages_html += _render_loading_message_html()
 
-    return f"""
-    <div style="max-height: 500px; overflow-y: auto; padding: {SPACE_4}; display: flex; flex-direction: column; gap: {GAP_FIELD};">
-        {messages_html}
-    </div>
-    """
+    return messages_html
 
 
-def _render_message_html(msg: Dict[str, Any]) -> str:
-    """Render a single chat message as HTML string."""
+def _render_message_html(msg: Dict[str, Any], index: int) -> str:
+    """Render a single chat message as HTML string with B1.9 accessibility."""
     is_user = msg["role"] == "user"
     avatar = "👤" if is_user else "🤖"
     avatar_bg = ACCENT_PRIMARY if is_user else ACCENT_SECONDARY
@@ -667,8 +667,11 @@ def _render_message_html(msg: Dict[str, Any]) -> str:
     content_border = f"{ACCENT_PRIMARY}44" if is_user else BORDER_DEFAULT
     time_align = "left" if is_user else "right"
 
+    role_label = "You" if is_user else "AI Assistant"
+    message_id = f"msg-{index}"
+
     return f"""
-    <div style="
+    <article role="article" aria-label="{role_label} message" id="{message_id}" style="
         display: flex;
         gap: {SPACE_3};
         max-width: 85%;
@@ -687,7 +690,7 @@ def _render_message_html(msg: Dict[str, Any]) -> str:
             flex-shrink: 0;
             background: {avatar_bg};
             color: {TEXT_ON_ACCENT};
-        ">{avatar}</div>
+        " aria-hidden="true">{avatar}</div>
         <div style="
             background: {content_bg};
             border: 1px solid {content_border};
@@ -698,17 +701,17 @@ def _render_message_html(msg: Dict[str, Any]) -> str:
         ">
             {msg["content"]}
             <div style="font-size: {FONT_SIZE_CAPTION}; color: {TEXT_MUTED}; margin-top: {SPACE_1}; text-align: {time_align};">
-                {time_str}
+                <time datetime="{timestamp}">{time_str}</time>
             </div>
         </div>
-    </div>
+    </article>
     """
 
 
 def _render_loading_message_html() -> str:
-    """Render loading indicator as HTML string."""
+    """Render loading indicator as HTML string with B1.9 accessibility."""
     return f"""
-    <div style="
+    <article role="status" aria-live="assertive" aria-label="AI Assistant is typing" aria-atomic="true" style="
         display: flex;
         gap: {SPACE_3};
         max-width: 85%;
@@ -725,7 +728,7 @@ def _render_loading_message_html() -> str:
             flex-shrink: 0;
             background: {ACCENT_SECONDARY};
             color: {TEXT_ON_ACCENT};
-        ">🤖</div>
+        " aria-hidden="true">🤖</div>
         <div style="
             background: {SURFACE_SECONDARY};
             border: 1px solid {BORDER_DEFAULT};
@@ -737,19 +740,22 @@ def _render_loading_message_html() -> str:
             <span style="display: inline-block; animation: pulse 1.5s infinite;">●</span>
             <span style="display: inline-block; animation: pulse 1.5s infinite 0.2s;">●</span>
             <span style="display: inline-block; animation: pulse 1.5s infinite 0.4s;">●</span>
+            <span class="i20-visually-hidden">AI Assistant is typing</span>
             <style>@keyframes pulse {{ 0%, 100% {{ opacity: 0.3; }} 50% {{ opacity: 1; }} }}</style>
         </div>
-    </div>
+    </article>
     """
 
 
-def _render_chat_input(ai, db):
-    """Render chat input area using design system form - RESPONSIVE."""
+def _render_chat_input(ai, db, chat_live_region_id: str = "ai-chat-live", loading_live_region_id: str = "ai-loading-live"):
+    """Render chat input area using design system form - RESPONSIVE with B1.9 accessibility."""
     with st.form(key="chat_form", clear_on_submit=True):
         user_input = text_input(
             label="Message",
             placeholder="Ask about diagnostics, maintenance, vehicle systems...",
             key="chat_input",
+            help_text="Press Enter to send, Shift+Enter for new line",
+            required=True,
         )
 
         col1, col2, col3 = st.columns([1, 1, 4], gap="small")
@@ -770,14 +776,14 @@ def _render_chat_input(ai, db):
             )
 
     if send_clicked and user_input.strip():
-        handle_user_message(ai, db, user_input.strip())
+        handle_user_message(ai, db, user_input.strip(), chat_live_region_id, loading_live_region_id)
 
     if clear_clicked:
         clear_conversation(db)
 
 
-def handle_user_message(ai, db, user_input: str):
-    """Handle user message and get AI response."""
+def handle_user_message(ai, db, user_input: str, chat_live_region_id: str = "ai-chat-live", loading_live_region_id: str = "ai-loading-live"):
+    """Handle user message and get AI response with B1.9 live region announcement."""
     # Add user message to history
     user_msg = {
         "role": "user",
@@ -789,12 +795,39 @@ def handle_user_message(ai, db, user_input: str):
     # Save to database
     db.add_ai_message(st.session_state.ai_session_id, "user", user_input)
 
+    # Announce user message sent via live region (B1.9)
+    announce_script = f'''
+    <script>
+    (function() {{
+        const region = document.getElementById('{chat_live_region_id}');
+        if (region) {{
+            region.textContent = 'Message sent. Waiting for AI response...';
+        }}
+    }})();
+    </script>
+    '''
+    st.markdown(announce_script, unsafe_allow_html=True)
+
     # Set loading state
     st.session_state.ai_loading = True
+
+    # Announce loading state via assertive live region (B1.9)
+    loading_announce_script = f'''
+    <script>
+    (function() {{
+        const region = document.getElementById('{loading_live_region_id}');
+        if (region) {{
+            region.textContent = 'AI Assistant is typing';
+        }}
+    }})();
+    </script>
+    '''
+    st.markdown(loading_announce_script, unsafe_allow_html=True)
+
     st.rerun()
 
 
-def get_ai_response(ai, db):
+def get_ai_response(ai, db, chat_live_region_id: str = "ai-chat-live", loading_live_region_id: str = "ai-loading-live"):
     """Get AI response (called after rerun when loading is True)."""
     if not st.session_state.ai_loading:
         return
@@ -860,6 +893,35 @@ def get_ai_response(ai, db):
         st.session_state.ai_messages.append(error_msg)
     finally:
         st.session_state.ai_loading = False
+
+        # Clear loading announcement
+        clear_loading_script = f'''
+        <script>
+        (function() {{
+            const region = document.getElementById('{loading_live_region_id}');
+            if (region) {{
+                region.textContent = '';
+            }}
+        }})();
+        </script>
+        '''
+        st.markdown(clear_loading_script, unsafe_allow_html=True)
+
+        # Announce AI response to live region
+        last_msg = st.session_state.ai_messages[-1].get("content", "")
+        if isinstance(last_msg, str) and "Error" not in last_msg:
+            announce_script = f'''
+            <script>
+            (function() {{
+                const region = document.getElementById('{chat_live_region_id}');
+                if (region) {{
+                    region.textContent = 'AI Assistant responded';
+                }}
+            }})();
+            </script>
+            '''
+            st.markdown(announce_script, unsafe_allow_html=True)
+
         st.rerun()
 
 
@@ -923,6 +985,33 @@ def render_ai_sidebar(ai, db):
             }
             st.session_state.ai_messages.append(user_msg)
             db.add_ai_message(st.session_state.ai_session_id, "user", prompt)
+
+            # Announce user message sent via live region (B1.9)
+            announce_script = f'''
+            <script>
+            (function() {{
+                const region = document.getElementById('ai-chat-live');
+                if (region) {{
+                    region.textContent = 'Message sent. Waiting for AI response...';
+                }}
+            }})();
+            </script>
+            '''
+            st.markdown(announce_script, unsafe_allow_html=True)
+
+            # Announce loading state via assertive live region (B1.9)
+            loading_announce_script = f'''
+            <script>
+            (function() {{
+                const region = document.getElementById('ai-loading-live');
+                if (region) {{
+                    region.textContent = 'AI Assistant is typing';
+                }}
+            }})();
+            </script>
+            '''
+            st.markdown(loading_announce_script, unsafe_allow_html=True)
+
             st.session_state.ai_loading = True
             st.rerun()
 
@@ -981,4 +1070,4 @@ def check_ai_response():
     if st.session_state.get("ai_loading", False):
         ai = get_ai_service()
         db = get_database()
-        get_ai_response(ai, db)
+        get_ai_response(ai, db, "ai-chat-live", "ai-loading-live")

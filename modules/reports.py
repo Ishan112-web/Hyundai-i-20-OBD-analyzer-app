@@ -371,7 +371,11 @@ def render_report_config_sidebar(generator: ReportGenerator):
 
 
 def render_generate_tab(generator: ReportGenerator):
-    """Render the report generation tab using Design System."""
+    """Render the report generation tab using Design System with B1.13 live region."""
+    # Live region for report generation progress announcements (B1.13)
+    report_live_region_id = "report-gen-live"
+    st.markdown(f'<div id="{report_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Report generation status"></div>', unsafe_allow_html=True)
+
     section_header("Generate Report", "Configure and generate your professional report")
 
     config = st.session_state.get("report_config", {})
@@ -424,7 +428,7 @@ def render_generate_tab(generator: ReportGenerator):
             key="generate_report_btn",
             use_container_width=True,
         ):
-            generate_report_action(generator, report_type, format_type, session_id, diagnosis_id, vehicle_override)
+            generate_report_action(generator, report_type, format_type, session_id, diagnosis_id, vehicle_override, report_live_region_id)
 
     # Batch generation
     st.divider()
@@ -435,7 +439,7 @@ def render_generate_tab(generator: ReportGenerator):
         key="generate_all_reports_btn",
         use_container_width=True,
     ):
-        generate_all_reports_action(generator, format_type, vehicle_override)
+        generate_all_reports_action(generator, format_type, vehicle_override, report_live_region_id)
 
 
 def generate_report_action(
@@ -445,8 +449,22 @@ def generate_report_action(
     session_id: Optional[str],
     diagnosis_id: Optional[str],
     vehicle_override: Dict[str, Any],
+    live_region_id: str = "report-gen-live",
 ):
-    """Execute report generation."""
+    """Execute report generation with B1.13 live region announcements."""
+    # Announce generation start
+    announce_script = f'''
+    <script>
+    (function() {{
+        const region = document.getElementById('{live_region_id}');
+        if (region) {{
+            region.textContent = 'Generating {report_type.value.replace("_", " ").title()} report...';
+        }}
+    }})();
+    </script>
+    '''
+    st.markdown(announce_script, unsafe_allow_html=True)
+
     with spinner(f"Generating {report_type.value.replace('_', ' ').title()} Report..."):
         try:
             result = generator.generate_report(
@@ -474,18 +492,58 @@ def generate_report_action(
             alert(f"✅ Report generated successfully!", variant=AlertVariant.SUCCESS)
             st.balloons()
 
+            # Announce completion
+            announce_script = f'''
+            <script>
+            (function() {{
+                const region = document.getElementById('{live_region_id}');
+                if (region) {{
+                    region.textContent = '{report_type.value.replace("_", " ").title()} report generated successfully';
+                }}
+            }})();
+            </script>
+            '''
+            st.markdown(announce_script, unsafe_allow_html=True)
+
         except Exception as e:
             alert(f"❌ Error generating report: {str(e)}", variant=AlertVariant.CRITICAL)
             import traceback
             st.code(traceback.format_exc())
+
+            # Announce error
+            announce_script = f'''
+            <script>
+            (function() {{
+                const region = document.getElementById('{live_region_id}');
+                if (region) {{
+                    region.textContent = 'Report generation failed';
+                }}
+            }})();
+            </script>
+            '''
+            st.markdown(announce_script, unsafe_allow_html=True)
 
 
 def generate_all_reports_action(
     generator: ReportGenerator,
     format_type: ReportFormat,
     vehicle_override: Dict[str, Any],
+    live_region_id: str = "report-gen-live",
 ):
-    """Generate all report types."""
+    """Generate all report types with B1.13 live region announcements."""
+    # Announce generation start
+    announce_script = f'''
+    <script>
+    (function() {{
+        const region = document.getElementById('{live_region_id}');
+        if (region) {{
+            region.textContent = 'Generating all reports...';
+        }}
+    }})();
+    </script>
+    '''
+    st.markdown(announce_script, unsafe_allow_html=True)
+
     with spinner("Generating all reports..."):
         try:
             results = generator.generate_all_reports(
@@ -496,6 +554,19 @@ def generate_all_reports_action(
             st.session_state.batch_results = results
             alert(f"✅ All {len(results)} reports generated successfully!", variant=AlertVariant.SUCCESS)
             st.balloons()
+
+            # Announce completion
+            announce_script = f'''
+            <script>
+            (function() {{
+                const region = document.getElementById('{live_region_id}');
+                if (region) {{
+                    region.textContent = 'All {len(results)} reports generated successfully';
+                }}
+            }})();
+            </script>
+            '''
+            st.markdown(announce_script, unsafe_allow_html=True)
 
             # Display results
             for rtype, result in results.items():
@@ -511,6 +582,19 @@ def generate_all_reports_action(
             alert(f"❌ Error generating reports: {str(e)}", variant=AlertVariant.CRITICAL)
             import traceback
             st.code(traceback.format_exc())
+
+            # Announce error
+            announce_script = f'''
+            <script>
+            (function() {{
+                const region = document.getElementById('{live_region_id}');
+                if (region) {{
+                    region.textContent = 'Batch report generation failed';
+                }}
+            }})();
+            </script>
+            '''
+            st.markdown(announce_script, unsafe_allow_html=True)
 
 
 def render_preview_tab():

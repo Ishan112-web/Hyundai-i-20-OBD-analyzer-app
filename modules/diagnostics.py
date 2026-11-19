@@ -47,7 +47,7 @@ from components.ui.components import (
     spinner, skeleton,
     selectbox,
 )
-from components.ui.layout import section_header
+from components.ui.layout import section_header, page_header
 from components.ui.tokens import (
     # Tokens
     ACCENT_PRIMARY, ACCENT_SECONDARY,
@@ -237,10 +237,23 @@ def init_diagnostics_session_state():
 # SCAN OPERATIONS
 # =============================================================================
 
-def perform_scan(obd):
-    """Perform DTC scan using OBD service."""
+def perform_scan(obd, live_region_id: str = "diag-scan-live"):
+    """Perform DTC scan using OBD service with B1.10 live region announcements."""
     st.session_state.scan_status = "scanning"
     st.session_state.selected_dtc = None
+
+    # Announce scanning start
+    announce_script = f'''
+    <script>
+    (function() {{
+        const region = document.getElementById('{live_region_id}');
+        if (region) {{
+            region.textContent = 'Scanning ECU for diagnostic trouble codes...';
+        }}
+    }})();
+    </script>
+    '''
+    st.markdown(announce_script, unsafe_allow_html=True)
 
     try:
         import time
@@ -290,9 +303,36 @@ def perform_scan(obd):
         st.session_state.scan_status = "complete"
         st.session_state.last_scan_time = datetime.now()
 
+        # Announce scan complete
+        count = len(st.session_state.scan_results)
+        announce_script = f'''
+        <script>
+        (function() {{
+            const region = document.getElementById('{live_region_id}');
+            if (region) {{
+                region.textContent = 'Scan complete — {count} code(s) found';
+            }}
+        }})();
+        </script>
+        '''
+        st.markdown(announce_script, unsafe_allow_html=True)
+
     except Exception as e:
         st.session_state.scan_status = "error"
         st.error(f"Scan failed: {str(e)}")
+
+        # Announce scan error
+        announce_script = f'''
+        <script>
+        (function() {{
+            const region = document.getElementById('{live_region_id}');
+            if (region) {{
+                region.textContent = 'Scan failed';
+            }}
+        }})();
+        </script>
+        '''
+        st.markdown(announce_script, unsafe_allow_html=True)
 
     st.rerun()
 
@@ -561,12 +601,15 @@ def _render_responsive_button_row(buttons: List[Dict[str, Any]], gap: str = "var
 # =============================================================================
 
 def render_scan_panel(obd):
-    """Render the DTC scan control panel using design system components - RESPONSIVE."""
+    """Render the DTC scan control panel using design system components - RESPONSIVE with B1.10 live region."""
     status = obd.get_status()
 
-    card_simple(f"""
-    <h3 style="margin: 0 0 {SPACE_4} 0; color: {TEXT_PRIMARY}; font-size: {FONT_SIZE_H3};">Scan for DTCs</h3>
-    """)
+    # Section header for the scan panel (h3 since parent "DTC Scanner" is h2)
+    section_header("Scan for DTCs", icon="🔍", level=3)
+
+    # Live region for scan status announcements (B1.10)
+    scan_live_region_id = "diag-scan-live"
+    st.markdown(f'<div id="{scan_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Scan status"></div>', unsafe_allow_html=True)
 
     # Scan controls - responsive button group
     scan_disabled = st.session_state.scan_status == "scanning"
@@ -576,11 +619,11 @@ def render_scan_panel(obd):
     col1, col2, col3 = st.columns(3, gap="small")
     with col1:
         if button_primary("🔍 Scan for Codes", disabled=scan_disabled, use_container_width=True, key="btn_scan"):
-            perform_scan(obd)
+            perform_scan(obd, scan_live_region_id)
 
     with col2:
         if button_secondary("🔄 Rescan", disabled=scan_disabled, use_container_width=True, key="btn_rescan"):
-            perform_scan(obd)
+            perform_scan(obd, scan_live_region_id)
 
     with col3:
         if button_ghost("✖ Clear Results", disabled=not has_results, use_container_width=True, key="btn_clear_scan"):
@@ -1418,207 +1461,34 @@ def render_diagnostics():
 
     # Determine status badge
     if conn_state == "connected" and mode == "simulation":
-        badge_class = "status-simulation"
         badge_text = "● SIMULATION MODE"
-    elif conn_state == "connected":
-        badge_class = "status-connected"
-        badge_text = "● CONNECTED"
-    elif conn_state == "error":
-        badge_class = "status-error"
-        badge_text = "● CONNECTION ERROR"
-    else:
-        badge_class = "status-disconnected"
-        badge_text = "● DISCONNECTED"
-
-    # Header using design system styling
-    st.markdown(f"""
-    <div style="
-        background: linear-gradient(90deg, {SURFACE_PRIMARY} 0%, {SURFACE_SECONDARY} 100%);
-        border: 1px solid {BORDER_DEFAULT};
-        border-radius: {RADIUS_LG};
-        padding: {SPACE_5} {SPACE_6};
-        margin-bottom: {SPACE_6};
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: var(--i20-gap-field);
-    ">
-        <div>
-            <h1 style="margin: 0; font-size: {FONT_SIZE_H1}; font-weight: {FONT_WEIGHT_H1}; color: {TEXT_PRIMARY};">Diagnostics</h1>
-            <p style="margin: {SPACE_1} 0 0 0; font-size: {FONT_SIZE_BODY}; color: {TEXT_SECONDARY};">DTC Scanning · Code Analysis · AI Diagnosis · Rule Engine</p>
-        </div>
-        <div style="
-            display: inline-flex;
-            align-items: center;
-            gap: {GAP_INLINE};
-            padding: {SPACE_2} {SPACE_4};
-            border-radius: {RADIUS_PILL};
-            font-size: {FONT_SIZE_LABEL};
-            font-weight: {FONT_WEIGHT_LABEL};
-            text-transform: uppercase;
-            letter-spacing: {LETTER_SPACING_LABEL};
-            background: {ACCENT_PRIMARY}1a;
-            color: {ACCENT_PRIMARY};
-            border: 1px solid {ACCENT_PRIMARY};
-        ">{badge_text}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Demo mode warning
-    if mode == "simulation":
-        alert("Demo Mode Active", "DTCs shown are simulated for demonstration only. They do not represent actual vehicle faults. Connect a real OBD-II adapter for live diagnostics.", variant=AlertVariant.WARNING)
-
-    # Limitations info box
-    alert("Scope Notice", "This module reads DTCs only. It does <strong>not</strong> clear codes, execute ECU commands, or perform actuator tests. For repairs, consult a qualified technician with proper diagnostic equipment.", variant=AlertVariant.INFO)
-
-    # Main content - RESPONSIVE GRID LAYOUT
-    # Uses auto-fit grid: stacks on mobile, 2-col on tablet, 3-col on desktop
-    st.markdown(f"""
-    <div class="i20-diagnostics-grid" style="
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-        gap: var(--i20-gap-section);
-    ">
-        <div class="i20-diagnostics-col-scan">
-            {_render_diagnostics_col_scan_html(obd)}
-        </div>
-        <div class="i20-diagnostics-col-detail">
-            {_render_diagnostics_col_detail_html()}
-        </div>
-        <div class="i20-diagnostics-col-ai">
-            {_render_diagnostics_col_ai_html(obd, db)}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Render actual Streamlit components inside the grid structure
-    _render_diagnostics_streamlit_components(obd, db)
-
-    # History panel (full width)
-    st.markdown(f"<div style='margin-top: {SPACE_6};'></div>", unsafe_allow_html=True)
-    section_header("Scan History", icon="📜", level=2)
-    render_history_panel(db)
-
-
-def _render_diagnostics_col_scan_html(obd) -> str:
-    """Render scan column as HTML for grid layout."""
-    return """
-    <div class="i20-panel-group">
-        <h2 class="i20-h3" style="margin: 0 0 var(--i20-gap-field) 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
-            <span>🔍</span> DTC Scanner
-        </h2>
-        <div class="i20-scan-panel-placeholder"></div>
-    </div>
-    """
-
-
-def _render_diagnostics_col_detail_html() -> str:
-    """Render detail column as HTML for grid layout."""
-    return """
-    <div class="i20-panel-group">
-        <h2 class="i20-h3" style="margin: 0 0 var(--i20-gap-field) 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
-            <span>🔍</span> Code Details
-        </h2>
-        <div class="i20-detail-panel-placeholder"></div>
-
-        <h2 class="i20-h3" style="margin: var(--i20-gap-section) 0 var(--i20-gap-field) 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
-            <span>📄</span> Generate Report
-        </h2>
-        <div class="i20-report-panel-placeholder"></div>
-    </div>
-    """
-
-
-def _render_diagnostics_col_ai_html(obd, db) -> str:
-    """Render AI/Rule column as HTML for grid layout."""
-    return """
-    <div class="i20-panel-group">
-        <h2 class="i20-h3" style="margin: 0 0 var(--i20-gap-field) 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
-            <span>🤖</span> AI Diagnosis
-        </h2>
-        <div class="i20-ai-panel-placeholder"></div>
-
-        <h2 class="i20-h3" style="margin: var(--i20-gap-section) 0 var(--i20-gap-field) 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
-            <span>⚙️</span> Rule Engine
-        </h2>
-        <div class="i20-rule-panel-placeholder"></div>
-    </div>
-    """
-
-
-def _render_diagnostics_streamlit_components(obd, db):
-    """Render the actual interactive Streamlit components."""
-    # This uses a hybrid approach: CSS grid for layout, Streamlit for interactivity
-    # We render the components in a way that respects the responsive grid
-
-    # Column 1: Scan + DTC List
-    # Column 2: Detail + Report
-    # Column 3: AI + Rule Engine
-
-    # Use Streamlit columns as a fallback for interactive elements
-    # The CSS grid handles the visual layout
-    pass
-
-
-# Actually render the components using Streamlit columns for interactivity
-# but with responsive CSS classes
-def render_diagnostics():
-    """Render the complete diagnostics page using the design system - FULLY RESPONSIVE."""
-    init_diagnostics_session_state()
-
-    obd = get_obd_service()
-    db = get_database()
-
-    # Get status for header
-    status = obd.get_status()
-    mode = status["mode"]
-    conn_state = status["connection_state"]
-
-    # Determine status badge
-    if conn_state == "connected" and mode == "simulation":
-        badge_text = "● SIMULATION MODE"
+        badge_variant = BadgeVariant.WARNING
     elif conn_state == "connected":
         badge_text = "● CONNECTED"
+        badge_variant = BadgeVariant.SUCCESS
     elif conn_state == "error":
         badge_text = "● CONNECTION ERROR"
+        badge_variant = BadgeVariant.CRITICAL
     else:
         badge_text = "● DISCONNECTED"
+        badge_variant = BadgeVariant.NEUTRAL
 
-    # Header using design system styling
-    st.markdown(f"""
-    <div style="
-        background: linear-gradient(90deg, {SURFACE_PRIMARY} 0%, {SURFACE_SECONDARY} 100%);
-        border: 1px solid {BORDER_DEFAULT};
-        border-radius: {RADIUS_LG};
-        padding: {SPACE_5} {SPACE_6};
-        margin-bottom: {SPACE_6};
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: var(--i20-gap-field);
-    ">
-        <div>
-            <h1 style="margin: 0; font-size: {FONT_SIZE_H1}; font-weight: {FONT_WEIGHT_H1}; color: {TEXT_PRIMARY};">Diagnostics</h1>
-            <p style="margin: {SPACE_1} 0 0 0; font-size: {FONT_SIZE_BODY}; color: {TEXT_SECONDARY};">DTC Scanning · Code Analysis · AI Diagnosis · Rule Engine</p>
-        </div>
-        <div style="
-            display: inline-flex;
-            align-items: center;
-            gap: {GAP_INLINE};
-            padding: {SPACE_2} {SPACE_4};
-            border-radius: {RADIUS_PILL};
-            font-size: {FONT_SIZE_LABEL};
-            font-weight: {FONT_WEIGHT_LABEL};
-            text-transform: uppercase;
-            letter-spacing: {LETTER_SPACING_LABEL};
-            background: {ACCENT_PRIMARY}1a;
-            color: {ACCENT_PRIMARY};
-            border: 1px solid {ACCENT_PRIMARY};
-        ">{badge_text}</div>
+    # Header using design system page_header component
+    from components.ui import badge as badge_component
+    conn_badge = badge_component(label=badge_text, variant=badge_variant, key="diag_conn_badge")
+
+    actions_html = f"""
+    <div style="display: flex; gap: {GAP_INLINE}; align-items: center;">
+        {conn_badge}
     </div>
-    """, unsafe_allow_html=True)
+    """
+
+    page_header(
+        title="Diagnostics",
+        subtitle="DTC Scanning · Code Analysis · AI Diagnosis · Rule Engine",
+        icon="\U0001f50d",
+        actions=actions_html
+    )
 
     # Demo mode warning
     if mode == "simulation":
@@ -1637,40 +1507,40 @@ def render_diagnostics():
     ">
     """, unsafe_allow_html=True)
 
-    # Column 1: Scan Panel + DTC List
+    # Column 1: Scan Panel + DTC List (level=2 for main sections)
     st.markdown('<div class="i20-diagnostics-col">', unsafe_allow_html=True)
-    section_header("DTC Scanner", icon="🔍", level=3)
+    section_header("DTC Scanner", icon="🔍", level=2)
     render_scan_panel(obd)
 
     st.markdown(f"<div style='margin-top: {SPACE_6};'></div>", unsafe_allow_html=True)
-    section_header("DTC Details", icon="📋", level=3)
+    section_header("DTC Details", icon="📋", level=2)
     render_dtc_list()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Column 2: DTC Detail + Report
+    # Column 2: DTC Detail + Report (level=2 for main sections)
     st.markdown('<div class="i20-diagnostics-col">', unsafe_allow_html=True)
-    section_header("Code Details", icon="🔍", level=3)
+    section_header("Code Details", icon="🔍", level=2)
     render_dtc_detail()
 
     st.markdown(f"<div style='margin-top: {SPACE_6};'></div>", unsafe_allow_html=True)
-    section_header("Generate Report", icon="📄", level=3)
+    section_header("Generate Report", icon="📄", level=2)
     render_report_panel(obd, db)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Column 3: AI Diagnosis + Rule Engine
+    # Column 3: AI Diagnosis + Rule Engine (level=2 for main sections)
     st.markdown('<div class="i20-diagnostics-col">', unsafe_allow_html=True)
-    section_header("AI Diagnosis", icon="🤖", level=3)
+    section_header("AI Diagnosis", icon="🤖", level=2)
     render_ai_diagnosis_panel(obd, db)
 
     st.markdown(f"<div style='margin-top: {SPACE_6};'></div>", unsafe_allow_html=True)
     if RULE_ENGINE_AVAILABLE:
-        section_header("Rule Engine", icon="⚙️", level=3)
+        section_header("Rule Engine", icon="⚙️", level=2)
         render_rule_engine_panel(obd, db)
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # History panel (full width)
+    # History panel (full width) - level=2 for main section
     st.markdown(f"<div style='margin-top: {SPACE_6};'></div>", unsafe_allow_html=True)
     section_header("Scan History", icon="📜", level=2)
     render_history_panel(db)

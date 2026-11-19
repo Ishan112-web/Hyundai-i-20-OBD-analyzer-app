@@ -561,6 +561,59 @@ def render_accessible_button(props: AccessibleButtonProps) -> str:
 # ACCESSIBLE FORM UTILITIES
 # =============================================================================
 
+# =============================================================================
+# FORM FIELD ERROR LINKING (B1.5) & REQUIRED FIELDS (B1.6)
+# =============================================================================
+
+@dataclass
+class FormFieldErrorProps:
+    """Properties for form field error message linking (B1.5).
+
+    Implements aria-describedby/aria-invalid pattern for accessible error handling.
+    Addresses WCAG 3.3.1 Error Identification, 3.3.3 Error Suggestion.
+    """
+    input_id: str
+    error_id: str
+    error_message: str
+    is_invalid: bool = True
+
+    def get_aria_describedby(self) -> str:
+        """Get the aria-describedby value for the input."""
+        return self.error_id if self.is_invalid else ""
+
+    def get_aria_invalid(self) -> str:
+        """Get the aria-invalid value for the input."""
+        return "true" if self.is_invalid else "false"
+
+    def render_error_element(self) -> str:
+        """Render the error message element with proper ID and role."""
+        if not self.is_invalid or not self.error_message:
+            return ""
+        return f'<div id="{self.error_id}" class="i20-field-error" role="alert" aria-live="polite">{self.error_message}</div>'
+
+
+@dataclass
+class RequiredFieldProps:
+    """Properties for required field indication (B1.6).
+
+    Implements aria-required for accessible required field indication.
+    Addresses WCAG 3.3.2 Labels or Instructions.
+    """
+    input_id: str
+    is_required: bool = True
+    required_marker: str = " *"  # Visual marker for required fields
+
+    def get_aria_required(self) -> str:
+        """Get the aria-required value for the input."""
+        return "true" if self.is_required else "false"
+
+    def render_required_indicator(self) -> str:
+        """Render the required field indicator in label."""
+        if not self.is_required:
+            return ""
+        return f'<span class="i20-required-marker" aria-hidden="true">{self.required_marker}</span>'
+
+
 @dataclass
 class AccessibleFieldProps:
     """Properties for an accessible form field."""
@@ -682,7 +735,8 @@ def render_accessible_chart_container(props: ChartAccessibilityProps) -> str:
     - aria-hidden on the visual chart (SVG/canvas)
     - Associated accessible data table
     - Proper labeling
-    Addresses WCAG 1.1.1 Non-text Content, 1.3.1 Info and Relationships.
+    - Keyboard navigation support (B1.17)
+    Addresses WCAG 1.1.1 Non-text Content, 1.3.1 Info and Relationships, 2.1.1 Keyboard.
     """
     table_id = f"{props.chart_id}-data-table"
     table_html = props.data_table or ""
@@ -697,11 +751,146 @@ def render_accessible_chart_container(props: ChartAccessibilityProps) -> str:
 </table>
 '''
 
+    # Keyboard navigation script for chart data table
+    keyboard_nav_script = f'''
+    <script>
+    (function() {{
+        const table = document.getElementById('{table_id}');
+        if (!table) return;
+
+        // Make table focusable for keyboard navigation
+        table.setAttribute('tabindex', '0');
+        table.setAttribute('role', 'grid');
+        table.setAttribute('aria-label', '{props.title} data grid');
+
+        let currentCell = null;
+        const cells = () => Array.from(table.querySelectorAll('td:not([style*="display:none"])'));
+        const rows = () => Array.from(table.querySelectorAll('tbody tr'));
+
+        function focusCell(cell) {{
+            if (!cell) return;
+            if (currentCell) {{
+                currentCell.classList.remove('i20-chart-cell-focused');
+            }}
+            currentCell = cell;
+            cell.classList.add('i20-chart-cell-focused');
+            cell.focus({{ preventScroll: true }});
+
+            // Announce cell coordinates for screen readers
+            const row = cell.closest('tr');
+            const rowIndex = rows().indexOf(row) + 1;
+            const colIndex = Array.from(row.querySelectorAll('td')).indexOf(cell) + 1;
+            const header = table.querySelector('thead th:nth-child(' + (colIndex + 1) + ')');
+            const headerText = header ? header.textContent.trim() : 'Column ' + colIndex;
+            const rowHeader = row.querySelector('th[scope="row"]');
+            const rowHeaderText = rowHeader ? rowHeader.textContent.trim() : 'Row ' + rowIndex;
+
+            const liveRegion = document.getElementById('{props.chart_id}-nav-announcer');
+            if (liveRegion) {{
+                liveRegion.textContent = 'Row ' + rowIndex + ', ' + headerText + ': ' + cell.textContent.trim();
+            }}
+        }}
+
+        table.addEventListener('keydown', function(e) {{
+            if (!currentCell) {{
+                // First focus - go to first data cell
+                const firstCell = cells()[0];
+                if (firstCell) focusCell(firstCell);
+                return;
+            }}
+
+            const allCells = cells();
+            const currentIndex = allCells.indexOf(currentCell);
+            const cols = table.querySelectorAll('thead th').length - 1; // minus row header
+            let nextIndex = currentIndex;
+
+            switch(e.key) {{
+                case 'ArrowRight':
+                    e.preventDefault();
+                    nextIndex = Math.min(currentIndex + 1, allCells.length - 1);
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    nextIndex = Math.max(currentIndex - 1, 0);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    nextIndex = Math.min(currentIndex + cols, allCells.length - 1);
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    nextIndex = Math.max(currentIndex - cols, 0);
+                    break;
+                case 'Home':
+                    e.preventDefault();
+                    nextIndex = 0;
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    nextIndex = allCells.length - 1;
+                    break;
+                case 'PageDown':
+                    e.preventDefault();
+                    nextIndex = Math.min(currentIndex + cols * 5, allCells.length - 1);
+                    break;
+                case 'PageUp':
+                    e.preventDefault();
+                    nextIndex = Math.max(currentIndex - cols * 5, 0);
+                    break;
+                case 'Tab':
+                    // Allow normal tab navigation out of table
+                    currentCell.classList.remove('i20-chart-cell-focused');
+                    currentCell = null;
+                    return;
+                default:
+                    return;
+            }}
+
+            if (nextIndex !== currentIndex && allCells[nextIndex]) {{
+                focusCell(allCells[nextIndex]);
+            }}
+        }});
+
+        // Focus visible styling
+        const style = document.createElement('style');
+        style.textContent = `
+            .i20-chart-cell-focused {{
+                outline: 2px solid var(--i20-color-border-focus, #0066cc) !important;
+                outline-offset: -2px !important;
+                background-color: var(--i20-color-accent-primary, #0066cc)15 !important;
+                z-index: 10;
+            }}
+            .i20-chart-container:focus-within {{
+                outline: 2px solid var(--i20-color-border-focus, #0066cc) !important;
+                outline-offset: 2px !important;
+                border-radius: 4px;
+            }}
+        `;
+        document.head.appendChild(style);
+
+        // Click on cell to focus
+        table.addEventListener('click', function(e) {{
+            const cell = e.target.closest('td');
+            if (cell && table.contains(cell)) {{
+                focusCell(cell);
+            }}
+        }});
+    }})();
+    </script>
+    '''
+
+    # Live region for cell navigation announcements
+    nav_live_region = f'''
+    <div id="{props.chart_id}-nav-announcer" class="i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Chart navigation"></div>
+    '''
+
     return f'''
 <div class="i20-chart-container" id="{props.chart_id}-container"
      role="region"
      aria-label="{props.title}"
+     tabindex="0"
      style="position:relative;">
+    {nav_live_region}
     <div id="{props.chart_id}"
          class="i20-chart-visual"
          aria-hidden="true"
@@ -710,6 +899,7 @@ def render_accessible_chart_container(props: ChartAccessibilityProps) -> str:
         <!-- Plotly chart renders here -->
     </div>
     {render_accessible_table_wrapper(table_html, table_id)}
+    {keyboard_nav_script}
 </div>
 '''
 
@@ -827,23 +1017,23 @@ def get_reduced_motion_css() -> str:
 
 def render_reduced_motion_detection_script() -> str:
     """Render script to detect and apply reduced motion preference."""
-    return f'''
+    return '''
 <script>
-(function() {{
+(function() {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-    function applyReducedMotion(reduced) {{
+    function applyReducedMotion(reduced) {
         document.documentElement.classList.toggle('i20-reduced-motion', reduced);
 
         // Notify Plotly charts to disable transitions
-        if (window.Plotly) {{
-            document.querySelectorAll('.js-plotly-plot').forEach(plot => {{
-                if (plot._fullLayout) {{
-                    Plotly.relayout(plot, {{ transition: {{ duration: reduced ? 0 : 300 }} }});
-                }}
-            }});
-        }}
-    }}
+        if (window.Plotly) {
+            document.querySelectorAll('.js-plotly-plot').forEach(plot => {
+                if (plot._fullLayout) {
+                    Plotly.relayout(plot, { transition: { duration: reduced ? 0 : 300 } });
+                }
+            });
+        }
+    }
 
     // Initial check
     applyReducedMotion(mediaQuery.matches);
@@ -852,10 +1042,10 @@ def render_reduced_motion_detection_script() -> str:
     mediaQuery.addEventListener('change', (e) => applyReducedMotion(e.matches));
 
     // Expose for manual control
-    window.i20ReducedMotion = {{
+    window.i20ReducedMotion = {
         isReduced: () => mediaQuery.matches,
         apply: applyReducedMotion
-    }};
+    };
 }})();
 </script>
 '''
@@ -940,24 +1130,183 @@ def render_landmark_fix_script() -> str:
 '''
 
 
-def render_footer() -> str:
-    """Render footer with contentinfo landmark.
+def render_scrollable_region_focus_fix_script() -> str:
+    """
+    Render script to make scrollable regions keyboard-focusable.
 
-    Returns:
-        HTML string for footer element (using div with role=contentinfo to avoid DOMPurify stripping)
+    Addresses axe-core 'scrollable-region-focusable' rule (WCAG 2.1.1 Keyboard).
+    Streamlit generates <pre> elements (.st-emotion-cache-kg09s) for code blocks
+    that become horizontally scrollable on mobile but aren't keyboard-focusable.
+
+    This script:
+    - Proactively adds tabindex="0" to elements with overflow styles (pre, code blocks)
+    - Preserves existing tabindex values
+    - Handles Streamlit rerenders via MutationObserver
+    - Adds visible focus indicators
+    - Avoids making non-scrollable containers focusable
     """
     return '''
-<div class="i20-footer" role="contentinfo" style="padding: 1.5rem 1rem; border-top: 1px solid var(--i20-color-border-subtle); margin-top: 2rem; font-size: 0.75rem; color: var(--i20-color-text-secondary);">
-    <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem;">
-        <div>&copy; 2025 i20 AI Garage. Professional Automotive Diagnostic Platform for Hyundai i20 Asta 2023.</div>
-        <div style="display: flex; gap: 1.5rem;">
-            <span>v1.0.0</span>
-            <span>Simulation Mode</span>
-            <span><a href="#" style="color: var(--i20-color-accent-primary);">Privacy</a></span>
-            <span><a href="#" style="color: var(--i20-color-accent-primary);">License</a></span>
-        </div>
-    </div>
-</div>
+<script>
+(function() {
+    'use strict';
+
+    console.error('[i20] Scrollable region focus fix script loaded');
+
+    // Selectors for elements that commonly have scrollable content in Streamlit
+    // These elements have overflow: auto/scroll styles and can become scrollable
+    const SCROLLABLE_SELECTORS = [
+        '.st-emotion-cache-kg09s',           // Streamlit code/pre blocks (primary target)
+        '.stMarkdown pre',                   // Markdown code blocks
+        '.stCodeBlock pre',                  // Code block component
+        'pre[style*="overflow"]',            // Inline overflow styles
+        'pre[style*="scroll"]',              // Inline scroll styles
+        '[class*="st-emotion-cache"][style*="overflow-x: auto"]',
+        '[class*="st-emotion-cache"][style*="overflow: auto"]',
+        '.i20-table-wrapper',                // Our accessible table wrapper
+        '.i20-chart-data-table-wrapper',     // Chart data table wrappers
+    ];
+
+    // Check if element has overflow styles that make it potentially scrollable
+    function hasOverflowStyles(element) {
+        if (!element || element.nodeType !== Node.ELEMENT_NODE) return false;
+
+        const style = window.getComputedStyle(element);
+        const overflowX = style.overflowX;
+        const overflowY = style.overflowY;
+
+        // Check if overflow is set to scroll or auto
+        return overflowX === 'scroll' || overflowX === 'auto' ||
+               overflowY === 'scroll' || overflowY === 'auto';
+    }
+
+    // Make element focusable if it has overflow styles
+    function makeFocusableIfOverflow(element) {
+        if (!element || element.hasAttribute('data-i20-scrollable-focus-fixed')) return;
+
+        if (hasOverflowStyles(element)) {
+            console.error('[i20] Making scrollable element focusable:', element);
+            // Preserve existing tabindex if present
+            if (!element.hasAttribute('tabindex')) {
+                element.setAttribute('tabindex', '0');
+            }
+            // Mark as processed
+            element.setAttribute('data-i20-scrollable-focus-fixed', 'true');
+
+            // Add focus-visible class support for consistent styling
+            element.classList.add('i20-scrollable-focusable');
+
+            // Also ensure focus styles work (CSS handles this, but ensure no outline conflicts)
+            element.style.setProperty('--i20-scrollable-focusable', 'true', 'important');
+        }
+    }
+
+    // Process all matching elements
+    function processScrollableElements() {
+        console.error('[i20] Processing scrollable elements...');
+        SCROLLABLE_SELECTORS.forEach(selector => {
+            try {
+                const elements = document.querySelectorAll(selector);
+                console.error('[i20] Selector:', selector, 'found:', elements.length, 'elements');
+                elements.forEach(makeFocusableIfOverflow);
+            } catch (e) {
+                console.error('[i20] Invalid selector:', selector, e);
+            }
+        });
+    }
+
+    // Initial processing - run immediately and on DOMContentLoaded
+    function runInitial() {
+        console.error('[i20] Running initial scrollable element processing');
+        processScrollableElements();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', runInitial);
+    } else {
+        runInitial();
+    }
+
+    // Also run after a short delay to catch elements rendered after initial load
+    setTimeout(runInitial, 100);
+    setTimeout(runInitial, 500);
+    setTimeout(runInitial, 1000);
+
+    // Handle Streamlit rerenders via MutationObserver
+    const observer = new MutationObserver((mutations) => {
+        let shouldProcess = false;
+
+        for (const mutation of mutations) {
+            // Check if new nodes were added that might be scrollable
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        // Check if the added node matches our selectors or contains matches
+                        let matches = false;
+                        SCROLLABLE_SELECTORS.forEach(selector => {
+                            try {
+                                if (node.matches && node.matches(selector)) {
+                                    matches = true;
+                                } else if (node.querySelectorAll) {
+                                    if (node.querySelectorAll(selector).length > 0) {
+                                        matches = true;
+                                    }
+                                }
+                            } catch (e) {
+                                // Ignore invalid selectors
+                            }
+                        });
+                        if (matches) {
+                            shouldProcess = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            // Also check for attribute changes on existing elements (e.g., style changes)
+            if (mutation.type === 'attributes' &&
+                (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                const target = mutation.target;
+                if (target && target.nodeType === Node.ELEMENT_NODE) {
+                    SCROLLABLE_SELECTORS.forEach(selector => {
+                        try {
+                            if (target.matches && target.matches(selector)) {
+                                shouldProcess = true;
+                            }
+                        } catch (e) {}
+                    });
+                }
+            }
+        }
+
+        if (shouldProcess) {
+            // Defer to next tick to let layout settle
+            requestAnimationFrame(processScrollableElements);
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+    });
+
+    // Also re-check on window resize (viewport changes can affect scrollability)
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(processScrollableElements, 100);
+    });
+
+    // Expose for manual control
+    window.i20ScrollableFocusFix = {
+        process: processScrollableElements,
+        hasOverflowStyles: hasOverflowStyles
+    };
+
+    console.error('[i20] Scrollable region focus fix initialized (iframe)');
+})();
+</script>
 '''
 
 
@@ -1133,4 +1482,6 @@ __all__ = [
     "render_reduced_motion_detection_script",
     # Touch targets
     "get_touch_target_css",
+    # Scrollable region focus fix
+    "render_scrollable_region_focus_fix_script",
 ]

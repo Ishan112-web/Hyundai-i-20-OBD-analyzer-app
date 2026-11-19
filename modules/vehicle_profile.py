@@ -236,7 +236,11 @@ def _render_vehicle_info_tab(vehicle_profile: Dict[str, Any], db: DatabaseServic
 
 
 def _render_edit_form(vehicle_profile: Dict[str, Any], db: DatabaseService):
-    """Render the vehicle profile edit form using design system form components - RESPONSIVE."""
+    """Render the vehicle profile edit form using design system form components - RESPONSIVE with B1.15 validation."""
+    # Live region for form validation announcements (B1.15)
+    form_live_region_id = "vehicle-form-live"
+    st.markdown(f'<div id="{form_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Form validation"></div>', unsafe_allow_html=True)
+
     with st.form("vehicle_profile_form"):
         # Row 1: Make, Model, Year - RESPONSIVE (columns stack on mobile)
         col1, col2, col3 = st.columns(3, gap="medium")
@@ -247,6 +251,7 @@ def _render_edit_form(vehicle_profile: Dict[str, Any], db: DatabaseService):
                 placeholder="e.g., Hyundai",
                 key="edit_make",
                 required=True,
+                error_text="" if vehicle_profile.get("make", "") else "Make is required",
             )
         with col2:
             model = text_input(
@@ -255,6 +260,7 @@ def _render_edit_form(vehicle_profile: Dict[str, Any], db: DatabaseService):
                 placeholder="e.g., i20 Asta",
                 key="edit_model",
                 required=True,
+                error_text="" if vehicle_profile.get("model", "") else "Model is required",
             )
         with col3:
             year = text_input(
@@ -264,6 +270,7 @@ def _render_edit_form(vehicle_profile: Dict[str, Any], db: DatabaseService):
                 key="edit_year",
                 required=True,
                 type="number",
+                error_text="" if str(vehicle_profile.get("year", 2023)).isdigit() and 1900 <= int(vehicle_profile.get("year", 2023)) <= 2030 else "Valid year (1900-2030) required",
             )
 
         # Row 2: Engine, Transmission, Fuel Type
@@ -356,33 +363,94 @@ def _render_edit_form(vehicle_profile: Dict[str, Any], db: DatabaseService):
             )
 
         if submitted:
-            updates = {
-                "make": make,
-                "model": model,
-                "year": int(year) if year.isdigit() else 2023,
-                "engine": engine,
-                "transmission": transmission,
-                "fuel_type": fuel_type,
-                "market": market,
-                "ecu_tuning": ecu_tuning,
-                "diagnostic_mode": diagnostic_mode,
-                "vin": vin.upper() if vin else None,
-            }
-            if db.update_vehicle_profile(**updates):
+            # Validate required fields
+            errors = []
+            if not make or not make.strip():
+                errors.append("Make is required")
+            if not model or not model.strip():
+                errors.append("Model is required")
+            if not year or not year.isdigit() or not (1900 <= int(year) <= 2030):
+                errors.append("Valid year (1900-2030) required")
+            if not engine or not engine.strip():
+                errors.append("Engine is required")
+            if not market or not market.strip():
+                errors.append("Market is required")
+
+            if errors:
+                # Announce validation errors
+                error_msg = "; ".join(errors)
+                announce_script = f'''
+                <script>
+                (function() {{
+                    const region = document.getElementById('{form_live_region_id}');
+                    if (region) {{
+                        region.textContent = 'Validation errors: {error_msg}';
+                    }}
+                }})();
+                </script>
+                '''
+                st.markdown(announce_script, unsafe_allow_html=True)
+
                 alert(
-                    title="Success",
-                    message="Vehicle profile updated successfully!",
-                    variant=AlertVariant.SUCCESS,
-                    key="profile_save_success"
-                )
-                st.rerun()
-            else:
-                alert(
-                    title="Error",
-                    message="Failed to update vehicle profile.",
+                    title="Validation Error",
+                    message="Please fix the following errors: " + "; ".join(errors),
                     variant=AlertVariant.CRITICAL,
-                    key="profile_save_error"
+                    key="profile_save_validation"
                 )
+            else:
+                updates = {
+                    "make": make,
+                    "model": model,
+                    "year": int(year) if year.isdigit() else 2023,
+                    "engine": engine,
+                    "transmission": transmission,
+                    "fuel_type": fuel_type,
+                    "market": market,
+                    "ecu_tuning": ecu_tuning,
+                    "diagnostic_mode": diagnostic_mode,
+                    "vin": vin.upper() if vin else None,
+                }
+                if db.update_vehicle_profile(**updates):
+                    # Announce success
+                    announce_script = f'''
+                    <script>
+                    (function() {{
+                        const region = document.getElementById('{form_live_region_id}');
+                        if (region) {{
+                            region.textContent = 'Vehicle profile updated successfully';
+                        }}
+                    }})();
+                    </script>
+                    '''
+                    st.markdown(announce_script, unsafe_allow_html=True)
+
+                    alert(
+                        title="Success",
+                        message="Vehicle profile updated successfully!",
+                        variant=AlertVariant.SUCCESS,
+                        key="profile_save_success"
+                    )
+                    st.rerun()
+                else:
+                    # Announce error
+                    announce_script = f'''
+                    <script>
+                    (function() {{
+                        const region = document.getElementById('{form_live_region_id}');
+                        if (region) {{
+                            region.textContent = 'Failed to update vehicle profile';
+                        }}
+                    }})();
+                    </script>
+                    '''
+                    st.markdown(announce_script, unsafe_allow_html=True)
+
+                    alert(
+                        title="Error",
+                        message="Failed to update vehicle profile.",
+                        variant=AlertVariant.CRITICAL,
+                        key="profile_save_error"
+                    )
 
         if cancelled:
             st.rerun()

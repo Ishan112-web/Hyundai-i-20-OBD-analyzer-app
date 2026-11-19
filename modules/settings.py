@@ -93,6 +93,21 @@ from components.ui import (
 logger = logging.getLogger(__name__)
 
 
+def announce_settings_change(message: str, live_region_id: str = "settings-changes-live") -> None:
+    """Announce a settings change to the live region (B1.14)."""
+    announce_script = f'''
+    <script>
+    (function() {{
+        const region = document.getElementById('{live_region_id}');
+        if (region) {{
+            region.textContent = '{message}';
+        }}
+    }})();
+    </script>
+    '''
+    st.markdown(announce_script, unsafe_allow_html=True)
+
+
 # Settings keys for database storage
 SETTINGS_KEYS = {
     # LM Studio / AI Settings
@@ -115,7 +130,7 @@ SETTINGS_KEYS = {
 
 
 def render_settings():
-    """Render the complete settings page."""
+    """Render the complete settings page with B1.14 live region for settings confirmations."""
     db = get_database()
     ai_service = get_ai_service()
 
@@ -125,6 +140,10 @@ def render_settings():
     # Design System: Global CSS + Layout initialization
     st.markdown(inject_global_css(), unsafe_allow_html=True)
     st.markdown(initialize_layout(), unsafe_allow_html=True)
+
+    # Live region for settings change confirmations (B1.14)
+    settings_live_region_id = "settings-changes-live"
+    st.markdown(f'<div id="{settings_live_region_id}" class="i20-live-region i20-visually-hidden" aria-live="polite" aria-atomic="true" aria-label="Settings changes"></div>', unsafe_allow_html=True)
 
     # Page header using Design System
     page_header(
@@ -248,6 +267,7 @@ def render_ai_settings(db, ai_service):
     if base_url and base_url != st.session_state.lm_studio_base_url:
         st.session_state.lm_studio_base_url = base_url
         db.set_setting("lm_studio_base_url", base_url, SETTINGS_KEYS["lm_studio_base_url"])
+        announce_settings_change("LM Studio base URL updated")
 
     st.divider()
 
@@ -291,6 +311,7 @@ def render_ai_settings(db, ai_service):
     if selected_model != st.session_state.lm_studio_model:
         st.session_state.lm_studio_model = selected_model
         db.set_setting("lm_studio_model", selected_model, SETTINGS_KEYS["lm_studio_model"])
+        announce_settings_change(f"AI model changed to {selected_model}")
 
     # Show model info as badges in responsive grid using design system
     if models:
@@ -333,6 +354,7 @@ def render_ai_settings(db, ai_service):
         if temperature != st.session_state.lm_studio_temperature:
             st.session_state.lm_studio_temperature = temperature
             db.set_setting("lm_studio_temperature", str(temperature), SETTINGS_KEYS["lm_studio_temperature"])
+            announce_settings_change(f"AI temperature set to {temperature}")
 
     with col2:
         timeout = st.number_input(
@@ -347,6 +369,7 @@ def render_ai_settings(db, ai_service):
         if timeout != st.session_state.lm_studio_timeout:
             st.session_state.lm_studio_timeout = timeout
             db.set_setting("lm_studio_timeout", str(timeout), SETTINGS_KEYS["lm_studio_timeout"])
+            announce_settings_change(f"AI request timeout set to {timeout} seconds")
 
     # Temperature guide using alert component
     alert(
@@ -387,6 +410,7 @@ def render_obd_settings(db):
     if obd_mode != st.session_state.obd_mode:
         st.session_state.obd_mode = obd_mode
         db.set_setting("obd_mode", obd_mode, SETTINGS_KEYS["obd_mode"])
+        announce_settings_change(f"OBD mode changed to {'Simulation' if obd_mode == 'simulation' else 'Real Hardware'}")
         st.rerun()
 
     # Mode indicator badge
@@ -418,6 +442,7 @@ def render_obd_settings(db):
             if port != st.session_state.obd_port:
                 st.session_state.obd_port = port
                 db.set_setting("obd_port", port, SETTINGS_KEYS["obd_port"])
+                announce_settings_change(f"OBD serial port changed to {port}")
 
         with col2:
             baudrate = selectbox(
@@ -430,6 +455,7 @@ def render_obd_settings(db):
             if baudrate != st.session_state.obd_baudrate:
                 st.session_state.obd_baudrate = baudrate
                 db.set_setting("obd_baudrate", str(baudrate), SETTINGS_KEYS["obd_baudrate"])
+                announce_settings_change(f"OBD baud rate changed to {baudrate}")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -443,6 +469,7 @@ def render_obd_settings(db):
             if protocol != st.session_state.obd_protocol:
                 st.session_state.obd_protocol = protocol
                 db.set_setting("obd_protocol", protocol, SETTINGS_KEYS["obd_protocol"])
+                announce_settings_change(f"OBD protocol changed to {protocol}")
 
         with col2:
             st.write("")
@@ -494,6 +521,7 @@ def render_simulation_settings(db):
         if sim_interval != st.session_state.simulation_interval:
             st.session_state.simulation_interval = sim_interval
             db.set_setting("simulation_interval", str(sim_interval), SETTINGS_KEYS["simulation_interval"])
+            announce_settings_change(f"Simulation interval set to {sim_interval} seconds")
 
     with col2:
         telemetry_interval = st.number_input(
@@ -509,6 +537,7 @@ def render_simulation_settings(db):
         if telemetry_interval != st.session_state.telemetry_refresh_interval:
             st.session_state.telemetry_refresh_interval = telemetry_interval
             db.set_setting("telemetry_refresh_interval", str(telemetry_interval), SETTINGS_KEYS["telemetry_refresh_interval"])
+            announce_settings_change(f"Telemetry refresh interval set to {telemetry_interval} seconds")
 
     st.divider()
 
@@ -573,6 +602,7 @@ def render_simulation_settings(db):
         if theme_mode != st.session_state.theme_mode:
             st.session_state.theme_mode = theme_mode
             db.set_setting("theme_mode", theme_mode, SETTINGS_KEYS["theme_mode"])
+            announce_settings_change(f"Theme changed to {theme_mode}")
 
     with col2:
         auto_refresh = st.checkbox(
@@ -584,6 +614,7 @@ def render_simulation_settings(db):
         if auto_refresh != st.session_state.auto_refresh:
             st.session_state.auto_refresh = auto_refresh
             db.set_setting("auto_refresh", str(auto_refresh).lower(), SETTINGS_KEYS["auto_refresh"])
+            announce_settings_change(f"Auto-refresh dashboard {'enabled' if auto_refresh else 'disabled'}")
 
     # Theme limitation notice
     if st.session_state.theme_mode != "dark":

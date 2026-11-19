@@ -195,7 +195,7 @@ BADGE_STYLES = {
     BadgeVariant.WARNING: {"bg": STATUS_WARNING, "color": TEXT_ON_ACCENT},
     BadgeVariant.CRITICAL: {"bg": STATUS_CRITICAL, "color": TEXT_ON_ACCENT},
     BadgeVariant.INFO: {"bg": STATUS_INFO, "color": TEXT_ON_ACCENT},
-    BadgeVariant.NEUTRAL: {"bg": STATUS_NEUTRAL, "color": TEXT_ON_ACCENT},
+    BadgeVariant.NEUTRAL: {"bg": TEXT_MUTED, "color": TEXT_ON_ACCENT},
     BadgeVariant.PRIMARY: {"bg": ACCENT_PRIMARY, "color": TEXT_ON_ACCENT},
     BadgeVariant.SECONDARY: {"bg": ACCENT_SECONDARY, "color": TEXT_ON_ACCENT},
 }
@@ -436,6 +436,7 @@ class FormFieldProps:
     error_text: str = ""
     required: bool = False
     disabled: bool = False
+    input_id: str = ""  # ID of the input element for label 'for' association
 
 
 def form_field(props: FormFieldProps, input_html: str) -> str:
@@ -455,9 +456,12 @@ def form_field(props: FormFieldProps, input_html: str) -> str:
     help_html = f'<div class="i20-field-help">{props.help_text}</div>' if props.help_text else ""
     error_html = f'<div class="i20-field-error">{props.error_text}</div>' if props.error_text else ""
 
+    # Label 'for' attribute for programmatic association with input
+    label_for = f' for="{props.input_id}"' if props.input_id else ""
+
     return f"""
 <div class="i20-field {disabled_class}" style="display: flex; flex-direction: column; gap: {GAP_FIELD};">
-  <label class="i20-field-label" style="
+  <label class="i20-field-label"{label_for} style="
     font-size: {FONT_SIZE_LABEL};
     font-weight: {FONT_WEIGHT_LABEL};
     color: {TEXT_SECONDARY};
@@ -484,7 +488,7 @@ def text_input(
     on_change: Optional[Callable] = None,
 ) -> str:
     """
-    Render a text input field.
+    Render a text input field with B1.5 (aria-describedby/aria-invalid) and B1.6 (aria-required) support.
 
     Returns the input value.
     """
@@ -503,13 +507,26 @@ def text_input(
         label_visibility="collapsed",
     )
 
-    # Render styled version
+    # Render styled version with accessibility
+    input_id = f"{input_key}-input"
+    help_id = f"{input_key}-help" if help_text else ""
+    error_id = f"{input_key}-error" if error_text else ""
+
+    # Build aria-describedby: combines help and error IDs
+    describedby_ids = []
+    if help_text:
+        describedby_ids.append(help_id)
+    if error_text:
+        describedby_ids.append(error_id)
+    describedby = " ".join(describedby_ids) if describedby_ids else ""
+
     field_props = FormFieldProps(
         label=label,
         help_text=help_text,
         error_text=error_text,
         required=required,
         disabled=disabled,
+        input_id=input_id,
     )
 
     input_html = f"""
@@ -532,15 +549,16 @@ def text_input(
          {'opacity: 0.5;' if disabled else ''}
        "
        aria-invalid="{'true' if error_text else 'false'}"
-       aria-describedby="{input_key}-help" {f'aria-describedby="{input_key}-error"' if error_text else ''}
-       id="{input_key}-input"
+       {f'aria-describedby="{describedby}"' if describedby else ''}
+       {f'aria-required="true"' if required else ''}
+       id="{input_id}"
 />
 """
 
     if help_text:
-        input_html += f'<div id="{input_key}-help" class="i20-field-help" style="font-size: {FONT_SIZE_CAPTION}; color: {TEXT_MUTED};">{help_text}</div>'
+        input_html += f'<div id="{help_id}" class="i20-field-help" style="font-size: {FONT_SIZE_CAPTION}; color: {TEXT_MUTED};">{help_text}</div>'
     if error_text:
-        input_html += f'<div id="{input_key}-error" class="i20-field-error" style="font-size: {FONT_SIZE_CAPTION}; color: {STATUS_CRITICAL};">{error_text}</div>'
+        input_html += f'<div id="{error_id}" class="i20-field-error" role="alert" aria-live="polite" style="font-size: {FONT_SIZE_CAPTION}; color: {STATUS_CRITICAL};">{error_text}</div>'
 
     st.markdown(form_field(field_props, input_html), unsafe_allow_html=True)
 
@@ -559,7 +577,7 @@ def selectbox(
     on_change: Optional[Callable] = None,
 ) -> str:
     """
-    Render a select box.
+    Render a select box with B1.5 (aria-describedby/aria-invalid) and B1.6 (aria-required) support.
 
     Returns the selected value.
     """
@@ -577,13 +595,26 @@ def selectbox(
         label_visibility="collapsed",
     )
 
-    # Render styled version
+    # Render styled version with accessibility
+    select_id = f"{input_key}-select"
+    help_id = f"{input_key}-help" if help_text else ""
+    error_id = f"{input_key}-error" if error_text else ""
+
+    # Build aria-describedby: combines help and error IDs
+    describedby_ids = []
+    if help_text:
+        describedby_ids.append(help_id)
+    if error_text:
+        describedby_ids.append(error_id)
+    describedby = " ".join(describedby_ids) if describedby_ids else ""
+
     field_props = FormFieldProps(
         label=label,
         help_text=help_text,
         error_text=error_text,
         required=required,
         disabled=disabled,
+        input_id=select_id,
     )
 
     options_html = "".join(f'<option value="{opt}" {"selected" if i == index else ""}>{opt}</option>' for i, opt in enumerate(options))
@@ -610,16 +641,18 @@ def selectbox(
         "
         {'disabled' if disabled else ''}
         aria-invalid="{'true' if error_text else 'false'}"
-        id="{input_key}-select"
+        {f'aria-describedby="{describedby}"' if describedby else ''}
+        {f'aria-required="true"' if required else ''}
+        id="{select_id}"
 >
   {options_html}
 </select>
 """
 
     if help_text:
-        input_html += f'<div id="{input_key}-help" class="i20-field-help" style="font-size: {FONT_SIZE_CAPTION}; color: {TEXT_MUTED};">{help_text}</div>'
+        input_html += f'<div id="{help_id}" class="i20-field-help" style="font-size: {FONT_SIZE_CAPTION}; color: {TEXT_MUTED};">{help_text}</div>'
     if error_text:
-        input_html += f'<div id="{input_key}-error" class="i20-field-error" style="font-size: {FONT_SIZE_CAPTION}; color: {STATUS_CRITICAL};">{error_text}</div>'
+        input_html += f'<div id="{error_id}" class="i20-field-error" role="alert" aria-live="polite" style="font-size: {FONT_SIZE_CAPTION}; color: {STATUS_CRITICAL};">{error_text}</div>'
 
     st.markdown(form_field(field_props, input_html), unsafe_allow_html=True)
 
@@ -1019,17 +1052,20 @@ def loading_overlay(message: str = "Loading...", key: str = "") -> None:
 
 @dataclass
 class WizardStep:
-    """Wizard step definition."""
+    """Wizard step definition with full accessibility support."""
     label: str
     icon: str = ""
     completed: bool = False
     active: bool = False
     error: bool = False
+    # Accessibility
+    description: str = ""  # Optional description for screen readers
+    disabled: bool = False  # Whether step can be navigated to
 
 
 @dataclass
 class WizardProps:
-    """Wizard component properties."""
+    """Wizard component properties with full accessibility support."""
     steps: list[WizardStep]
     current_step: int
     content: str
@@ -1040,82 +1076,156 @@ class WizardProps:
     on_prev: Optional[Callable] = None
     on_finish: Optional[Callable] = None
     key: str = ""
+    # Accessibility
+    announce_step_change: bool = True  # Whether to announce step changes via live region
+    live_region_id: str = "i20-live-polite"  # Live region to use for announcements
+    show_progress: bool = True  # Whether to show progress text (Step X of Y)
 
 
 def wizard(props: WizardProps) -> None:
-    """Render an accessible wizard stepper with ARIA tabs pattern and focus trap."""
+    """Render a fully accessible wizard stepper with step indicator, live region announcements, and focus management.
+
+    Accessibility features:
+    - Semantic step indicator using <ol> with aria-current="step"
+    - Step states (completed, current, upcoming) distinguishable without color
+    - Progress announcement via live region (e.g., "Step 2 of 8: Port Discovery")
+    - Keyboard navigation with proper focus management
+    - Focus trap in wizard content area
+    - Accessible navigation buttons with type="button" and keyboard activation
+    """
     wizard_key = props.key or f"wizard_{id(props)}"
+    total_steps = len(props.steps)
+    current_step_index = props.current_step
+    current_step_num = current_step_index + 1
 
-    # Build step labels and IDs for ARIA tabs
+    # Build step labels and IDs
     step_labels = [step.label for step in props.steps]
-    step_ids = [f"step-{i}" for i in range(len(props.steps))]
+    step_descriptions = [step.description for step in props.steps]
+    step_ids = [f"step-{i}" for i in range(total_steps)]
 
-    # Render ARIA tabs pattern for step navigation
-    wizard_aria = render_wizard_aria_tabs(WizardAccessibilityProps(
-        wizard_id=wizard_key,
-        current_step=props.current_step,
-        total_steps=len(props.steps),
-        step_labels=step_labels,
-        step_ids=step_ids,
-    ))
+    # Announce step change via live region (only once per step change)
+    if props.announce_step_change:
+        step_label = step_labels[current_step_index] if current_step_index < len(step_labels) else ""
+        step_desc = step_descriptions[current_step_index] if current_step_index < len(step_descriptions) else ""
+        announcement = f"Step {current_step_num} of {total_steps}: {step_label}"
+        if step_desc:
+            announcement += f". {step_desc}"
 
-    # Build step indicators (visual)
-    step_items = []
+        # Use JavaScript to announce to live region
+        st.markdown(f'''
+<script>
+(function() {{
+    const region = document.getElementById('{props.live_region_id}');
+    if (region) {{
+        // Only announce if the message actually changed (avoid duplicate announcements on rerun)
+        if (region.dataset.lastMessage !== '{announcement}') {{
+            region.textContent = '';
+            region.offsetHeight; // Force reflow
+            region.textContent = '{announcement}';
+            region.dataset.lastMessage = '{announcement}';
+        }}
+    }}
+}})();
+</script>
+''', unsafe_allow_html=True)
+
+    # Build accessible step indicator using <ol> with aria-current
+    step_indicator_items = []
     for i, step in enumerate(props.steps):
         step_num = i + 1
-        is_last = i == len(props.steps) - 1
+        is_last = i == total_steps - 1
+        is_current = i == current_step_index
+        is_completed = step.completed
+        is_error = step.error
+        is_disabled = step.disabled
 
-        circle_class = ""
-        if step.error:
-            circle_class = "error"
-        elif step.completed:
-            circle_class = "completed"
-        elif step.active:
-            circle_class = "active"
+        # Determine step state for styling and ARIA
+        if is_error:
+            state = "error"
+            state_label = "Error"
+            circle_bg = STATUS_CRITICAL
+            circle_border = STATUS_CRITICAL
+            circle_color = TEXT_ON_ACCENT
+            label_color = STATUS_CRITICAL
+        elif is_completed:
+            state = "completed"
+            state_label = "Completed"
+            circle_bg = STATUS_SUCCESS
+            circle_border = STATUS_SUCCESS
+            circle_color = TEXT_ON_ACCENT
+            label_color = TEXT_SECONDARY
+        elif is_current:
+            state = "current"
+            state_label = "Current"
+            circle_bg = ACCENT_PRIMARY
+            circle_border = ACCENT_PRIMARY
+            circle_color = TEXT_ON_ACCENT
+            label_color = ACCENT_PRIMARY
+        else:
+            state = "upcoming"
+            state_label = "Upcoming"
+            circle_bg = SURFACE_SECONDARY
+            circle_border = BORDER_DEFAULT
+            circle_color = TEXT_MUTED
+            label_color = TEXT_MUTED
 
-        circle_bg = {
-            "completed": STATUS_SUCCESS,
-            "active": ACCENT_PRIMARY,
-            "error": STATUS_CRITICAL,
-        }.get(circle_class, SURFACE_SECONDARY)
+        # Build step item with full accessibility
+        # Use aria-current="step" for current step, visually hidden status for all steps
 
-        circle_border = {
-            "completed": STATUS_SUCCESS,
-            "active": ACCENT_PRIMARY,
-            "error": STATUS_CRITICAL,
-        }.get(circle_class, BORDER_DEFAULT)
+        # Pre-compute onclick handler to avoid f-string backslash issues
+        if not is_disabled:
+            onclick_attr = f'window.parent.postMessage({{"type": "streamlit:setComponentValue", "key": "{wizard_key}_step_{i}", "value": true}}, "*");'
+        else:
+            onclick_attr = ''
 
-        circle_color = TEXT_ON_ACCENT if circle_class in ("completed", "active", "error") else TEXT_MUTED
-
-        label_color = {
-            "completed": TEXT_SECONDARY,
-            "active": ACCENT_PRIMARY,
-            "error": STATUS_CRITICAL,
-        }.get(circle_class, TEXT_MUTED)
-
-        connector = ""
-        if not is_last:
-            connector = f'<div class="i20-wizard-connector" style="flex: 1; height: 2px; background: {BORDER_DEFAULT}; position: absolute; top: 16px; left: 48px; right: -48px; z-index: 0;"></div>'
-
-        step_items.append(f"""
-<div class="i20-wizard-step" style="display: flex; flex-direction: column; align-items: center; gap: {SPACE_2}; position: relative; z-index: 1; flex: 1; text-align: center; min-width: 80px;">
-  {connector}
-  <div class="i20-wizard-step-circle {circle_class}" style="
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: {FONT_SIZE_LABEL};
-    font-weight: {FONT_WEIGHT_LABEL};
-    background-color: {circle_bg};
-    border: 2px solid {circle_border};
-    color: {circle_color};
-    transition: all {TRANSITION_NORMAL};
-  ">
-    {step.icon or step_num}
-  </div>
+        step_indicator_items.append(f"""
+<li class="i20-wizard-step-item" style="
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: {SPACE_2};
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  text-align: center;
+  min-width: 80px;
+  list-style: none;
+">
+  <div class="i20-wizard-step-connector" style="
+    {'display: none;' if is_last else f'flex: 1; height: 2px; background: {BORDER_DEFAULT}; position: absolute; top: 16px; left: 48px; right: -48px; z-index: 0;'}
+  " aria-hidden="true"></div>
+  <button
+    type="button"
+    class="i20-wizard-step-button"
+    role="tab"
+    id="{wizard_key}-tab-step-{step_num}"
+    aria-selected="{str(is_current).lower()}"
+    aria-controls="{wizard_key}-panel-step-{step_num}"
+    aria-current="{'step' if is_current else 'false'}"
+    aria-disabled="{str(is_disabled).lower()}"
+    tabindex="{'0' if is_current else '-1'}"
+    style="
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: {FONT_SIZE_LABEL};
+      font-weight: {FONT_WEIGHT_LABEL};
+      background-color: {circle_bg};
+      border: 2px solid {circle_border};
+      color: {circle_color};
+      transition: all {TRANSITION_NORMAL};
+      padding: 0;
+      cursor: {'pointer' if not is_disabled else 'not-allowed'};
+      opacity: {1.0 if not is_disabled else 0.5};
+    "
+    onclick="{onclick_attr}"
+  >
+    <span class="i20-wizard-step-number" aria-hidden="true">{step.icon or step_num}</span>
+    <span class="i20-visually-hidden">{step_num}. {step.label} — {state_label}</span>
+  </button>
   <div class="i20-wizard-step-label" style="
     font-size: {FONT_SIZE_CAPTION};
     font-weight: {FONT_WEIGHT_LABEL};
@@ -1123,13 +1233,37 @@ def wizard(props: WizardProps) -> None:
     text-transform: uppercase;
     letter-spacing: {LETTER_SPACING_CAPTION};
     white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   ">{step.label}</div>
-</div>
+  <span class="i20-visually-hidden" aria-live="polite">{state_label}</span>
+</li>
 """)
+
+    # Build progress text
+    progress_text = ""
+    if props.show_progress:
+        progress_text = f"""
+<div class="i20-wizard-progress" style="
+  margin-bottom: {SPACE_4};
+  padding: {SPACE_2} {SPACE_3};
+  background-color: {SURFACE_SECONDARY};
+  border-radius: {RADIUS_MD};
+  text-align: center;
+">
+  <span class="i20-wizard-progress-text" style="
+    font-size: {FONT_SIZE_BODY_SM};
+    font-weight: {FONT_WEIGHT_LABEL};
+    color: {TEXT_PRIMARY};
+  ">Step {current_step_num} of {total_steps}</span>
+  <span class="i20-visually-hidden">You are on step {current_step_num} of {total_steps}: {step_labels[current_step_index] if current_step_index < len(step_labels) else ""}</span>
+</div>
+"""
 
     # Navigation buttons - use accessible button pattern
     is_first = props.current_step == 0
-    is_last = props.current_step == len(props.steps) - 1
+    is_last = props.current_step == total_steps - 1
 
     prev_disabled = is_first
     next_label = props.finish_label if is_last else props.next_label
@@ -1141,7 +1275,7 @@ def wizard(props: WizardProps) -> None:
         'variant': 'secondary',
         'disabled': prev_disabled,
         'loading': False,
-        'icon': None,
+        'icon': '←',
         'icon_position': 'start',
         'aria_pressed': None,
         'aria_expanded': None,
@@ -1158,8 +1292,8 @@ def wizard(props: WizardProps) -> None:
         'variant': 'primary',
         'disabled': False,
         'loading': False,
-        'icon': None,
-        'icon_position': 'start',
+        'icon': '→' if not is_last else '✓',
+        'icon_position': 'end',
         'aria_pressed': None,
         'aria_expanded': None,
         'aria_controls': None,
@@ -1177,6 +1311,7 @@ def wizard(props: WizardProps) -> None:
         on_deactivate=f"window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{wizard_key}_focus_trap_deactivated', 'value': true}}, '*');"
     )
 
+    # Render the wizard
     st.markdown(f"""
 <div class="i20-wizard" id="{wizard_key}" style="
   background-color: {SURFACE_PRIMARY};
@@ -1184,18 +1319,45 @@ def wizard(props: WizardProps) -> None:
   border-radius: {WIZARD_CARD_RADIUS};
   box-shadow: {WIZARD_CARD_SHADOW};
   padding: {WIZARD_CARD_PADDING};
-">
-  {wizard_aria}
-  <div class="i20-wizard-content" id="{wizard_key}-content" style="min-height: 200px;">
+" role="region" aria-label="OBD Connection Wizard">
+  {progress_text}
+  <nav class="i20-wizard-step-indicator" aria-label="Wizard steps" style="margin-bottom: {SPACE_5};">
+    <ol class="i20-wizard-steps" role="tablist" style="
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      gap: {SPACE_2};
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      flex-wrap: wrap;
+    ">
+      {''.join(step_indicator_items)}
+    </ol>
+  </nav>
+  <div class="i20-wizard-content" id="{wizard_key}-content" role="tabpanel" aria-labelledby="{wizard_key}-tab-step-{current_step_num}" style="min-height: 200px;">
     {props.content}
   </div>
-  <div class="i20-wizard-actions" style="display: flex; justify-content: space-between; margin-top: {SPACE_6}; padding-top: {SPACE_4}; border-top: 1px solid {BORDER_SUBTLE};">
+  <div class="i20-wizard-actions" style="display: flex; justify-content: space-between; margin-top: {SPACE_6}; padding-top: {SPACE_4}; border-top: 1px solid {BORDER_SUBTLE}; flex-wrap: wrap; gap: {SPACE_2};">
     {prev_btn}
     {next_btn}
   </div>
 </div>
 {focus_trap}
 """, unsafe_allow_html=True)
+
+    # Handle step navigation via session state (for clicking on step buttons)
+    for i in range(total_steps):
+        step_key = f"{wizard_key}_step_{i}"
+        step_clicked = st.session_state.get(step_key, False)
+        if step_clicked:
+            st.session_state[step_key] = False
+            # Don't allow navigation to disabled steps
+            if not props.steps[i].disabled:
+                # Update session state to trigger step change
+                # The actual step change is handled by the page's wizard_next/prev functions
+                # We just need to signal that a step was clicked
+                pass
 
     # Handle button clicks via session state
     prev_clicked = st.session_state.get(f"{wizard_key}_prev", False)

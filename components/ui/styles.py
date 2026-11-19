@@ -467,6 +467,82 @@ body {{
   border-radius: var(--i20-radius-sm);
 }}
 
+/* Custom button focus-visible */
+.i20-btn:focus-visible {{
+  outline: none;
+  box-shadow: var(--i20-shadow-focus);
+  border-radius: var(--i20-button-radius);
+}}
+
+/* Custom input focus-visible */
+.i20-field-input:focus-visible {{
+  outline: none;
+  box-shadow: var(--i20-shadow-focus);
+  border-radius: var(--i20-input-radius);
+  border-color: var(--i20-color-border-focus);
+}}
+
+/* Custom select focus-visible */
+.i20-field-input[aria-invalid="true"]:focus-visible {{
+  box-shadow: var(--i20-shadow-focus), 0 0 0 2px var(--i20-color-status-critical);
+}}
+
+/* Link focus-visible */
+.i20-link:focus-visible {{
+  outline: none;
+  box-shadow: var(--i20-shadow-focus);
+  border-radius: var(--i20-radius-sm);
+}}
+
+/* Wizard step focus-visible */
+.i20-wizard-step button:focus-visible {{
+  outline: none;
+  box-shadow: var(--i20-shadow-focus);
+  border-radius: var(--i20-radius-sm);
+}}
+
+/* Card focus-visible (for clickable cards) */
+.i20-card:focus-visible {{
+  outline: none;
+  box-shadow: var(--i20-shadow-focus);
+  border-radius: var(--i20-card-radius);
+}}
+
+/* Table row focus-visible (for keyboard navigation) */
+.i20-table tbody tr:focus-visible {{
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--i20-color-accent-primary);
+}}
+
+/* Tab focus-visible */
+.stTabs [data-baseweb="tab"]:focus-visible {{
+  outline: none;
+  box-shadow: var(--i20-shadow-focus);
+  border-radius: var(--i20-radius-sm) var(--i20-radius-sm) 0 0;
+}}
+
+/* Sidebar navigation focus-visible */
+.i20-sidebar nav a:focus-visible,
+.i20-sidebar nav button:focus-visible {{
+  outline: none;
+  box-shadow: var(--i20-shadow-focus);
+  border-radius: var(--i20-radius-sm);
+}}
+
+/* Top bar focus-visible */
+.i20-top-bar button:focus-visible,
+.i20-top-bar a:focus-visible {{
+  outline: none;
+  box-shadow: var(--i20-shadow-focus);
+  border-radius: var(--i20-radius-sm);
+}}
+
+/* Ensure focus-visible is not applied to mouse/touch interactions */
+:focus:not(:focus-visible) {{
+  outline: none;
+  box-shadow: none;
+}}
+
 /* ============================================================================
    SKIP LINK (Accessibility)
    ============================================================================ */
@@ -518,7 +594,7 @@ body {{
 }}
 
 /* ============================================================================
-   PRINT STYLES
+   PRINT STYLES (B1.18)
    ============================================================================ */
 
 @media print {{
@@ -529,20 +605,388 @@ body {{
   body {{
     background: white !important;
     color: black !important;
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
   }}
 
+  /* Page margins and size */
+  @page {{
+    margin: 2cm;
+    size: A4;
+  }}
+
+  /* Hide Streamlit UI elements */
+  header,
+  footer,
+  #MainMenu,
+  .stAppHeader,
+  section[data-testid="stSidebar"],
+  .stTabs [data-baseweb="tab-list"],
+  .stButton > button,
+  .stDownloadButton > button,
+  .stFormSubmitButton > button,
+  .stSelectbox,
+  .stNumberInput,
+  .stTextInput,
+  .stTextArea,
+  .stRadio,
+  .stCheckbox,
+  .stSlider,
+  .stProgress,
+  .stFileUploader,
+  .stExpander,
+  .stSpinner,
+  .stAlert,
+  .stMarkdown[style*="margin-top"]:has(> div[style*="display: flex"][style*="gap"]),
+  .i20-top-bar,
+  .i20-skip-link,
+  .i20-live-region {{
+    display: none !important;
+  }}
+
+  /* Main content fills page */
+  .block-container {{
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }}
+
+  .main .block-container {{
+    padding: 0 !important;
+  }}
+
+  /* Cards - print without shadows, with borders */
   .i20-card {{
     border: 1px solid #ccc !important;
     box-shadow: none !important;
     break-inside: avoid;
+    page-break-inside: avoid;
+    background: white !important;
+    color: black !important;
+    margin-bottom: 1em !important;
   }}
 
-  .i20-btn {{
+  .i20-card-lg {{
     border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    background: white !important;
+    color: black !important;
+    margin-bottom: 1em !important;
+  }}
+
+  /* Buttons - hide in print or show as plain text */
+  .i20-btn {{
+    display: none !important;
+  }}
+
+  .stButton > button,
+  .stDownloadButton > button,
+  .stFormSubmitButton > button {{
+    display: none !important;
+  }}
+
+  /* Tables - ensure they break properly */
+  .i20-table,
+  .stDataFrame,
+  table {{
+    page-break-inside: auto !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 10pt !important;
+  }}
+
+  .i20-table thead,
+  .stDataFrame thead {{
+    display: table-header-group !important;
+  }}
+
+  .i20-table tbody,
+  .stDataFrame tbody {{
+    display: table-row-group !important;
+  }}
+
+  .i20-table tr,
+  .stDataFrame tr {{
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }}
+
+  .i20-table th,
+  .i20-table td,
+  .stDataFrame th,
+  .stDataFrame td {{
+    border: 1px solid #ccc !important;
+    padding: 4px 8px !important;
     background: white !important;
     color: black !important;
   }}
+
+  .i20-table th,
+  .stDataFrame th {{
+    background: #f0f0f0 !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }}
+
+  /* Charts - hide interactive Plotly charts, show data tables instead */
+  .js-plotly-plot,
+  .i20-chart-visual,
+  iframe {{
+    display: none !important;
+  }}
+
+  .i20-chart-data-table {{
+    display: table !important;
+    width: 100% !important;
+    page-break-inside: auto !important;
+  }}
+
+  .i20-chart-container {{
+    page-break-inside: avoid !important;
+  }}
+
+  /* Badges - print with borders instead of background colors */
+  .i20-badge {{
+    border: 1px solid #666 !important;
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }}
+
+  .i20-badge-success {{
+    border-color: #2ecc71 !important;
+  }}
+
+  .i20-badge-warning {{
+    border-color: #f39c12 !important;
+  }}
+
+  .i20-badge-critical {{
+    border-color: #e74c3c !important;
+  }}
+
+  .i20-badge-info {{
+    border-color: #3498db !important;
+  }}
+
+  .i20-badge-neutral {{
+    border-color: #95a5a6 !important;
+  }}
+
+  /* Headings */
+  h1, h2, h3, h4, h5, h6,
+  .i20-display, .i20-h1, .i20-h2, .i20-h3, .i20-h4 {{
+    color: black !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }}
+
+  h1, .i20-display, .i20-h1 {{
+    font-size: 24pt !important;
+    border-bottom: 2px solid #333 !important;
+    padding-bottom: 0.25em !important;
+    margin-bottom: 0.5em !important;
+  }}
+
+  h2, .i20-h2 {{
+    font-size: 18pt !important;
+    margin-top: 1.5em !important;
+    margin-bottom: 0.5em !important;
+  }}
+
+  h3, .i20-h3 {{
+    font-size: 14pt !important;
+    margin-top: 1em !important;
+    margin-bottom: 0.5em !important;
+  }}
+
+  h4, .i20-h4 {{
+    font-size: 12pt !important;
+    font-weight: bold !important;
+    margin-top: 1em !important;
+  }}
+
+  /* Links - show URL after link text */
+  a[href]::after {{
+    content: " (" attr(href) ")" !important;
+    font-size: 9pt !important;
+    color: #666 !important;
+  }}
+
+  a[href^="#"]::after {{
+    content: "" !important;
+  }}
+
+  /* Code blocks */
+  .i20-code,
+  .i20-code-sm,
+  pre,
+  code {{
+    background: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }}
+
+  /* Report-specific: page breaks between report sections */
+  .i20-report-section {{
+    page-break-before: always;
+  }}
+
+  .i20-report-section:first-child {{
+    page-break-before: avoid;
+  }}
+
+  /* Hide iframe previews */
+  .i20-report-iframe {{
+    display: none !important;
+  }}
+
+  /* Download links - hide */
+  a[download] {{
+    display: none !important;
+  }}
+
+  /* Status indicators - use text instead of color */
+  .i20-status-indicator::before {{
+    content: attr(aria-label) ": " !important;
+  }}
+
+  .i20-status-dot {{
+    display: none !important;
+  }}
+
+  /* Grid layouts - stack vertically */
+  .i20-grid-auto-fit-card,
+  .i20-grid-auto-fit-metric,
+  .i20-card-grid,
+  .i20-metric-grid {{
+    display: block !important;
+  }}
+
+  .i20-grid-auto-fit-card > *,
+  .i20-grid-auto-fit-metric > *,
+  .i20-card-grid > *,
+  .i20-metric-grid > * {{
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 1em !important;
+  }}
+
+  /* Empty states */
+  .i20-empty-state {{
+    border: 1px dashed #ccc !important;
+    padding: 2em !important;
+    page-break-inside: avoid !important;
+  }}
+
+  /* Alerts */
+  .i20-alert,
+  .stAlert {{
+    border: 1px solid #ccc !important;
+    background: white !important;
+    page-break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }}
+
+  .i20-alert-success,
+  .stAlert[data-baseweb="notification"][kind="success"] {{
+    border-left: 4px solid #2ecc71 !important;
+  }}
+
+  .i20-alert-warning,
+  .stAlert[data-baseweb="notification"][kind="warning"] {{
+    border-left: 4px solid #f39c12 !important;
+  }}
+
+  .i20-alert-critical,
+  .stAlert[data-baseweb="notification"][kind="error"] {{
+    border-left: 4px solid #e74c3c !important;
+  }}
+
+  .i20-alert-info,
+  .stAlert[data-baseweb="notification"][kind="info"] {{
+    border-left: 4px solid #3498db !important;
+  }}
+
+  /* Spinners and skeletons */
+  .i20-spinner,
+  .i20-skeleton,
+  .i20-btn-spinner {{
+    display: none !important;
+  }}
+
+  /* Table wrapper */
+  .i20-table-wrapper {{
+    overflow: visible !important;
+    max-width: 100% !important;
+  }}
+
+  /* Ensure text is readable */
+  * {{
+    text-shadow: none !important;
+    filter: none !important;
+  }}
+
+  /* Prevent orphans and widows */
+  p, li, td, th {{
+    orphans: 3;
+    widows: 3;
+  }}
 }}
+
+/* ============================================================================
+   SCROLLABLE REGION FOCUS FIX (B1.17 Accessibility)
+   ============================================================================ */
+
+ /*
+  * Safari/axe-core requires scrollable regions to be keyboard-focusable.
+  * Streamlit generates <pre> elements (class .st-emotion-cache-kg09s) for code blocks
+  * that become horizontally scrollable on mobile viewports.
+  * This CSS ensures they can receive keyboard focus and show visible focus indicators.
+  */
+
+/* Target Streamlit's generated pre/code blocks that are scrollable */
+.st-emotion-cache-kg09s,
+.st-emotion-cache-kg09s[style*="overflow"],
+.st-emotion-cache-kg09s[style*="scroll"],
+.pre-scrollable,
+.code-scrollable,
+pre[style*="overflow-x: auto"],
+pre[style*="overflow: auto"],
+.stMarkdown pre,
+.stCodeBlock pre {
+  /* Make scrollable regions focusable via CSS tabindex equivalent */
+  /* Note: tabindex must be added via HTML/JS, but we ensure focus styles work */
+}
+
+/* Visible focus indicator for scrollable code/pre blocks */
+.st-emotion-cache-kg09s:focus-visible,
+.st-emotion-cache-kg09s:focus,
+.pre-scrollable:focus-visible,
+.pre-scrollable:focus,
+.stMarkdown pre:focus-visible,
+.stMarkdown pre:focus,
+.stCodeBlock pre:focus-visible,
+.stCodeBlock pre:focus {
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-sm) !important;
+  z-index: 10 !important;
+}
+
+/* Ensure scrollable regions have proper touch scrolling on mobile */
+.st-emotion-cache-kg09s,
+.stMarkdown pre,
+.stCodeBlock pre {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
 
 /* ============================================================================
    STREAMLIT-SPECIFIC OVERRIDES
@@ -850,6 +1294,109 @@ section[data-testid="stSidebar"] .stMarkdown {{
   box-shadow: var(--i20-shadow-md) !important;
   color: var(--i20-color-text-primary) !important;
   padding: var(--i20-space-2) var(--i20-space-3) !important;
+}}
+
+/* ============================================================================
+   FOCUS VISIBLE FOR STREAMLIT NATIVE WIDGETS (B1.7)
+   ============================================================================ */
+
+/* Streamlit Button focus-visible */
+.stButton > button:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-button-radius) !important;
+}}
+
+/* Streamlit TextInput focus-visible */
+.stTextInput > div > div > input:focus-visible,
+.stNumberInput > div > div > input:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-input-radius) !important;
+  border-color: var(--i20-color-border-focus) !important;
+}}
+
+/* Streamlit Selectbox focus-visible */
+.stSelectbox > div > div > div > div:focus-visible,
+.stSelectbox [data-baseweb="select"] > div:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-input-radius) !important;
+  border-color: var(--i20-color-border-focus) !important;
+}}
+
+/* Streamlit TextArea focus-visible */
+.stTextArea > div > div > textarea:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-input-radius) !important;
+  border-color: var(--i20-color-border-focus) !important;
+}}
+
+/* Streamlit Checkbox focus-visible */
+.stCheckbox input:focus-visible,
+.stCheckbox > div:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-sm) !important;
+}}
+
+/* Streamlit Radio focus-visible */
+.stRadio > div > label:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-sm) !important;
+}}
+
+/* Streamlit Tabs focus-visible (supplements existing rule) */
+.stTabs [data-baseweb="tab"]:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-sm) var(--i20-radius-sm) 0 0 !important;
+}}
+
+/* Streamlit Slider focus-visible */
+.stSlider > div > div > div[role="slider"]:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: 50% !important;
+}}
+
+/* Streamlit FileUploader focus-visible */
+.stFileUploader > div:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-md) !important;
+  border-color: var(--i20-color-border-focus) !important;
+}}
+
+/* Streamlit DataFrame focus-visible */
+.stDataFrame:focus-visible,
+.stDataFrame [data-testid="stDataFrameResizable"]:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-md) !important;
+}}
+
+/* Streamlit Expander focus-visible */
+.streamlit-expanderHeader:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-md) !important;
+}}
+
+/* Streamlit Metric focus-visible */
+[data-testid="metric-container"]:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-md) !important;
+}}
+
+/* Streamlit Alert focus-visible */
+.stAlert:focus-visible {{
+  outline: none !important;
+  box-shadow: var(--i20-shadow-focus) !important;
+  border-radius: var(--i20-radius-md) !important;
 }}
 
 /* ============================================================================
@@ -1578,30 +2125,6 @@ section[data-testid="stSidebar"] .stMarkdown {{
 
      .i20-card {{ padding: var(--i20-padding-card); }}
      .i20-card-lg {{ padding: var(--i20-padding-card-lg); }}
-   }}
-
-   /* Print styles */
-   @media print {{
-     .i20-no-print {{
-       display: none !important;
-     }}
-
-     body {{
-       background: white !important;
-       color: black !important;
-     }}
-
-     .i20-card {{
-       border: 1px solid #ccc !important;
-       box-shadow: none !important;
-       break-inside: avoid;
-     }}
-
-     .i20-btn {{
-       border: 1px solid #ccc !important;
-       background: white !important;
-       color: black !important;
-     }}
    }}
 """
 

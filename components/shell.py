@@ -46,6 +46,7 @@ from .ui.accessibility import (
     render_landmark_fix_script,
     render_footer,
     get_touch_target_css,
+    render_scrollable_region_focus_fix_script,
 )
 
 
@@ -406,9 +407,10 @@ def render_shell(
     st.markdown(render_skip_link("main-content"), unsafe_allow_html=True)
     st.markdown(render_persistent_live_regions(), unsafe_allow_html=True)
 
-    # Inject scripts via st.html with unsafe_allow_javascript=True for execution
+    # Inject scripts via st.html with unsafe_allow_javascript=True for execution in main page context
     st.html(render_reduced_motion_detection_script(), unsafe_allow_javascript=True)
     st.html(render_landmark_fix_script(), unsafe_allow_javascript=True)
+    st.html(render_scrollable_region_focus_fix_script(), unsafe_allow_javascript=True)
 
     st.markdown(f"<style>{get_touch_target_css()}</style>", unsafe_allow_html=True)
 
@@ -468,26 +470,13 @@ def render_shell(
     )
 
     # Render main content container
-    st.markdown('<div id="debug-before-renderer" style="color: red;">DEBUG: Before renderer</div>', unsafe_allow_html=True)
     renderer = page_renderers.get(current_page)
     if renderer:
-        try:
-            renderer()
-            st.markdown('<div id="debug-renderer-success" style="color: green;">DEBUG: Renderer returned successfully</div>', unsafe_allow_html=True)
-        except Exception as e:
-            st.markdown(f'<div id="debug-renderer-error" style="color: red;">DEBUG: Renderer error: {e}</div>', unsafe_allow_html=True)
-            st.error(f"Renderer error: {e}")
+        renderer()
     else:
         st.error(f"Unknown page: {current_page}")
-    st.markdown('<div id="debug-after-renderer" style="color: red;">DEBUG: After renderer</div>', unsafe_allow_html=True)
-
-    # Debug: check if we reach here
-    st.markdown('<div id="debug-before-footer" style="color: red;">DEBUG: Before footer render</div>', unsafe_allow_html=True)
 
     # Render footer with contentinfo landmark AFTER page content (at bottom of page)
     st.markdown(render_footer(), unsafe_allow_html=True)
-
-    # Debug: check if footer rendered
-    st.markdown('<div id="debug-after-footer" style="color: red;">DEBUG: After footer render</div>', unsafe_allow_html=True)
 
     return ShellRenderResult(current_page=current_page, page_changed=page_changed)

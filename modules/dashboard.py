@@ -19,11 +19,12 @@ from services.obd_service import SensorReading
 
 from components.charts_v2 import (
     create_gauge, create_sparkline, create_line_chart,
-    SERIES_PALETTE, I20_TEMPLATE
+    SERIES_PALETTE, I20_TEMPLATE, ACCESSIBLE_CHART_CONFIG
 )
 from components.ui.components import (
     card_simple, badge, button_primary, button_secondary, button_ghost,
-    alert, empty_state, spinner, BadgeVariant
+    alert, empty_state, spinner, BadgeVariant,
+    text_input, selectbox,
 )
 from components.ui.tokens import (
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED,
@@ -38,7 +39,7 @@ from components.ui.tokens import (
 from components.ui.layout import (
     AUTO_FIT_CARD_CSS, AUTO_FIT_METRIC_CSS,
     grid_container, responsive_container,
-    section_header as layout_section_header,
+    page_header, section_header,
 )
 
 
@@ -75,8 +76,8 @@ def render_dashboard():
     status = obd.get_status()
     readings = obd.get_all_readings()
 
-    # Page header with vehicle info and connection status
-    _render_page_header(status)
+    # Page header using design system page_header component
+    _render_page_header_design_system(status)
 
     # Show simulation mode alert
     if status["mode"] == "simulation":
@@ -119,12 +120,14 @@ def _render_main_column_html(readings: Dict[str, SensorReading], obd) -> str:
     """Render main column content as HTML string for grid layout."""
     html_parts = []
 
-    # Primary gauges row - Live Telemetry
+    # Primary gauges row - Live Telemetry (h2 for main section)
     html_parts.append(f"""
-    <div style="margin-bottom: var(--i20-gap-section);">
-        <h2 class="i20-h3" style="margin: 0 0 var(--i20-gap-field) 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
+    <div class="i20-section-header" style="margin-bottom: var(--i20-gap-section); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--i20-gap-field);">
+      <div>
+        <h2 class="i20-h2" style="margin: 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
             <span>📊</span> Live Telemetry
         </h2>
+      </div>
     </div>
     """)
 
@@ -147,24 +150,28 @@ def _render_sidebar_column_html(readings: Dict[str, SensorReading], obd, db, sta
     telemetry_html = _render_telemetry_cards_html(readings, obd)
     html_parts.append(telemetry_html)
 
-    # Simulation controls - Quick Actions
+    # Simulation controls - Quick Actions (h2 for main section)
     html_parts.append(f"""
-    <div style="margin-bottom: var(--i20-gap-section);">
-        <h2 class="i20-h3" style="margin: 0 0 var(--i20-gap-field) 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
+    <div class="i20-section-header" style="margin-bottom: var(--i20-gap-section); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--i20-gap-field);">
+      <div>
+        <h2 class="i20-h2" style="margin: 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
             <span>⚙️</span> Quick Actions
         </h2>
+      </div>
     </div>
     """)
 
     controls_html = _render_simulation_controls_html(obd, db, status)
     html_parts.append(controls_html)
 
-    # Status panel - System Status
+    # Status panel - System Status (h2 for main section)
     html_parts.append(f"""
-    <div style="margin-bottom: var(--i20-gap-section);">
-        <h2 class="i20-h3" style="margin: 0 0 var(--i20-gap-field) 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
+    <div class="i20-section-header" style="margin-bottom: var(--i20-gap-section); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--i20-gap-field);">
+      <div>
+        <h2 class="i20-h2" style="margin: 0; display: flex; align-items: center; gap: var(--i20-gap-inline);">
             <span>🖥️</span> System Status
         </h2>
+      </div>
     </div>
     """)
 
@@ -178,8 +185,8 @@ def _render_sidebar_column_html(readings: Dict[str, SensorReading], obd, db, sta
 # PAGE HEADER
 # =============================================================================
 
-def _render_page_header(status: Dict[str, Any]):
-    """Render the dashboard page header with vehicle info and connection status."""
+def _render_page_header_design_system(status: Dict[str, Any]):
+    """Render the dashboard page header using design system page_header component."""
     mode = status["mode"]
     conn_state = status["connection_state"]
 
@@ -197,36 +204,28 @@ def _render_page_header(status: Dict[str, Any]):
         badge_variant = BadgeVariant.NEUTRAL
         badge_label = "DISCONNECTED"
 
-    # Render header using columns for layout
-    col1, col2 = st.columns([3, 1])
+    # Build actions HTML for page_header
+    from components.ui import badge as badge_component
+    conn_badge = badge_component(label=badge_label, variant=badge_variant, key="dashboard_conn_badge")
 
-    with col1:
-        st.markdown(f"""
-        <div style="
-            background: var(--i20-color-bg-card);
-            border: 1px solid var(--i20-color-border);
-            border-radius: var(--i20-radius-lg);
-            padding: var(--i20-spacing-lg) var(--i20-spacing-xl);
-            margin-bottom: var(--i20-gap-page);
-        ">
-            <h1 style="
-                margin: 0;
-                font-size: var(--i20-font-size-xl);
-                font-weight: var(--i20-font-weight-semibold);
-                color: var(--i20-color-text-primary);
-            ">{VEHICLE_INFO['make']} {VEHICLE_INFO['model']} ({VEHICLE_INFO['year']})</h1>
-            <p style="
-                margin: var(--i20-spacing-xs) 0 0 0;
-                font-size: var(--i20-font-size-sm);
-                color: var(--i20-color-text-secondary);
-            ">{VEHICLE_INFO['engine']} · {VEHICLE_INFO['transmission']} · {VEHICLE_INFO['fuel_type']}</p>
-        </div>
-        """, unsafe_allow_html=True)
+    actions_html = f"""
+    <div style="display: flex; gap: {GAP_INLINE}; align-items: center;">
+        {conn_badge}
+    </div>
+    """
 
-    with col2:
-        st.markdown("<div style='height: 100%; display: flex; align-items: center; justify-content: flex-end;'>", unsafe_allow_html=True)
-        badge(label=badge_label, variant=badge_variant)
-        st.markdown("</div>", unsafe_allow_html=True)
+    page_header(
+        title=f"{VEHICLE_INFO['make']} {VEHICLE_INFO['model']} ({VEHICLE_INFO['year']})",
+        subtitle=f"{VEHICLE_INFO['engine']} · {VEHICLE_INFO['transmission']} · {VEHICLE_INFO['fuel_type']}",
+        icon="\U0001f697",
+        actions=actions_html
+    )
+
+
+# Legacy function kept for compatibility (not used)
+def _render_page_header(status: Dict[str, Any]):
+    """Legacy page header - kept for reference."""
+    pass
 
 
 # =============================================================================
@@ -633,7 +632,7 @@ def _render_telemetry_card(label: str, value: float, unit: str, dot_color: str, 
             height=40,
             show_area=True,
         )
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG)
 
 
 # =============================================================================
@@ -682,7 +681,7 @@ def _render_live_charts():
 
     card_simple(
         title="Live Telemetry",
-        content_fn=lambda: st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}),
+        content_fn=lambda: st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG),
         padding="md",
     )
 
@@ -743,6 +742,7 @@ def _render_simulation_controls_html(obd, db, status: Dict[str, Any]) -> str:
     scenarios = obd.get_available_scenarios()
     scenario_options = {k: v["name"] for k, v in scenarios.items()}
     selected = st.session_state.get("sim_scenario", "idle")
+    select_id = "sim-scenario-select"
 
     html = f"""
     <div class="i20-simulation-controls" style="
@@ -752,7 +752,7 @@ def _render_simulation_controls_html(obd, db, status: Dict[str, Any]) -> str:
         padding: var(--i20-spacing-lg);
     ">
         <div style="margin-bottom: var(--i20-spacing-md);">
-            <label style="
+            <label for="{select_id}" style="
                 display: block;
                 font-size: var(--i20-font-size-label);
                 font-weight: var(--i20-font-weight-label);
@@ -761,7 +761,23 @@ def _render_simulation_controls_html(obd, db, status: Dict[str, Any]) -> str:
                 text-transform: uppercase;
                 letter-spacing: var(--i20-letter-spacing-label);
             ">Scenario</label>
-            <div class="i20-scenario-select" data-selected="{selected}">
+            <select id="{select_id}" class="i20-field-input" style="
+                font-family: var(--i20-font-family-base);
+                font-size: var(--i20-font-size-body);
+                height: var(--i20-input-height);
+                padding: var(--i20-input-padding-vertical) var(--i20-input-padding-horizontal);
+                border-radius: var(--i20-input-radius);
+                border: 1px solid var(--i20-color-border-default);
+                background-color: var(--i20-color-surface-secondary);
+                color: var(--i20-color-text-primary);
+                transition: all var(--i20-transition-fast);
+                width: 100%;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239aa3ad' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right var(--i20-space-3) center;
+                padding-right: var(--i20-space-6);
+            ">
     """
 
     for key, name in scenario_options.items():
@@ -769,7 +785,7 @@ def _render_simulation_controls_html(obd, db, status: Dict[str, Any]) -> str:
         html += f'<option value="{key}"{selected_attr}>{name}</option>'
 
     html += f"""
-            </div>
+            </select>
         </div>
         <div class="i20-scenario-description" style="
             font-size: var(--i20-font-size-sm);
@@ -782,9 +798,9 @@ def _render_simulation_controls_html(obd, db, status: Dict[str, Any]) -> str:
             gap: var(--i20-spacing-sm);
             margin-top: var(--i20-spacing-md);
         ">
-            <button class="i20-btn i20-btn-primary" style="flex: 1; min-width: 120px; padding: var(--i20-spacing-sm) var(--i20-spacing-md);" data-action="start" {'disabled' if st.session_state.get('sim_running') else ''}>▶ Start</button>
-            <button class="i20-btn i20-btn-secondary" style="flex: 1; min-width: 120px; padding: var(--i20-spacing-sm) var(--i20-spacing-md);" data-action="stop" {'disabled' if not st.session_state.get('sim_running') else ''}>■ Stop</button>
-            <button class="i20-btn i20-btn-ghost" style="flex: 1; min-width: 120px; padding: var(--i20-spacing-sm) var(--i20-spacing-md);" data-action="reset">↻ Reset</button>
+            <button class="i20-btn i20-btn-primary" type="button" style="flex: 1; min-width: 120px; padding: var(--i20-spacing-sm) var(--i20-spacing-md);" data-action="start" {'disabled' if st.session_state.get('sim_running') else ''}>▶ Start</button>
+            <button class="i20-btn i20-btn-secondary" type="button" style="flex: 1; min-width: 120px; padding: var(--i20-spacing-sm) var(--i20-spacing-md);" data-action="stop" {'disabled' if not st.session_state.get('sim_running') else ''}>■ Stop</button>
+            <button class="i20-btn i20-btn-ghost" type="button" style="flex: 1; min-width: 120px; padding: var(--i20-spacing-sm) var(--i20-spacing-md);" data-action="reset">↻ Reset</button>
         </div>
 """
 
@@ -828,14 +844,21 @@ def _render_simulation_controls_content(obd, db, status: Dict[str, Any]):
     # Scenario selector
     scenarios = obd.get_available_scenarios()
     scenario_options = {k: v["name"] for k, v in scenarios.items()}
+    scenario_keys = list(scenario_options.keys())
+    scenario_labels = list(scenario_options.values())
 
-    selected_scenario = st.selectbox(
+    # Find current index
+    current_key = st.session_state.sim_scenario if st.session_state.sim_scenario in scenario_keys else scenario_keys[0]
+    current_index = scenario_keys.index(current_key)
+
+    selected_label = selectbox(
         "Scenario",
-        options=list(scenario_options.keys()),
-        format_func=lambda x: scenario_options[x],
-        index=list(scenario_options.keys()).index(st.session_state.sim_scenario) if st.session_state.sim_scenario in scenario_options else 0,
+        options=scenario_labels,
+        index=current_index,
         key="scenario_selector_dashboard",
     )
+    # Map selected label back to key
+    selected_scenario = scenario_keys[scenario_labels.index(selected_label)]
     st.session_state.sim_scenario = selected_scenario
 
     # Scenario description
@@ -1179,7 +1202,7 @@ def _render_single_gauge(config: Dict[str, Any]):
     # Render in a card container
     card_simple(
         title="",
-        content_fn=lambda: st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}),
+        content_fn=lambda: st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG),
         padding="md",
     )
 
@@ -1226,6 +1249,6 @@ def render_live_chart_streamlit():
 
     card_simple(
         title="Live Telemetry",
-        content_fn=lambda: st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}),
+        content_fn=lambda: st.plotly_chart(fig, use_container_width=True, config=ACCESSIBLE_CHART_CONFIG),
         padding="md",
     )
