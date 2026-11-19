@@ -960,10 +960,10 @@ body {{
 pre[style*="overflow-x: auto"],
 pre[style*="overflow: auto"],
 .stMarkdown pre,
-.stCodeBlock pre {
+.stCodeBlock pre {{
   /* Make scrollable regions focusable via CSS tabindex equivalent */
   /* Note: tabindex must be added via HTML/JS, but we ensure focus styles work */
-}
+}}
 
 /* Visible focus indicator for scrollable code/pre blocks */
 .st-emotion-cache-kg09s:focus-visible,
@@ -973,20 +973,20 @@ pre[style*="overflow: auto"],
 .stMarkdown pre:focus-visible,
 .stMarkdown pre:focus,
 .stCodeBlock pre:focus-visible,
-.stCodeBlock pre:focus {
+.stCodeBlock pre:focus {{
   outline: none !important;
   box-shadow: var(--i20-shadow-focus) !important;
   border-radius: var(--i20-radius-sm) !important;
   z-index: 10 !important;
-}
+}}
 
 /* Ensure scrollable regions have proper touch scrolling on mobile */
 .st-emotion-cache-kg09s,
 .stMarkdown pre,
-.stCodeBlock pre {
+.stCodeBlock pre {{
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-}
+}}
 
 /* ============================================================================
    STREAMLIT-SPECIFIC OVERRIDES

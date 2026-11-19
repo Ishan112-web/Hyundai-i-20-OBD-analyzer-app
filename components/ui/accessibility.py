@@ -1310,6 +1310,185 @@ def render_scrollable_region_focus_fix_script() -> str:
 '''
 
 
+def render_scrollable_region_focus_fix_script_for_parent() -> str:
+    """
+    Render script to make scrollable regions keyboard-focusable.
+
+    This version is designed to run in an iframe (via st.components.v1.html())
+    but uses window.parent to access and modify the main Streamlit document.
+
+    Addresses axe-core 'scrollable-region-focusable' rule (WCAG 2.1.1 Keyboard).
+    Streamlit generates <pre> elements (.st-emotion-cache-kg09s) for code blocks
+    that become horizontally scrollable on mobile but aren't keyboard-focusable.
+    """
+    return '''
+<script>
+(function() {
+    'use strict';
+
+    // Use parent window to access main page DOM
+    const win = window.parent;
+    const doc = win.document;
+
+    console.error('[i20] Scrollable region focus fix script loaded (iframe -> parent)');
+
+    // Selectors for elements that commonly have scrollable content in Streamlit
+    const SCROLLABLE_SELECTORS = [
+        '.st-emotion-cache-kg09s',           // Streamlit code/pre blocks (primary target)
+        '.stMarkdown pre',                   // Markdown code blocks
+        '.stCodeBlock pre',                  // Code block component
+        'pre[style*="overflow"]',            // Inline overflow styles
+        'pre[style*="scroll"]',              // Inline scroll styles
+        '[class*="st-emotion-cache"][style*="overflow-x: auto"]',
+        '[class*="st-emotion-cache"][style*="overflow: auto"]',
+        '.i20-table-wrapper',                // Our accessible table wrapper
+        '.i20-chart-data-table-wrapper',     // Chart data table wrappers
+    ];
+
+    // Check if element has overflow styles that make it potentially scrollable
+    function hasOverflowStyles(element) {
+        if (!element || element.nodeType !== win.Node.ELEMENT_NODE) return false;
+
+        const style = win.getComputedStyle(element);
+        const overflowX = style.overflowX;
+        const overflowY = style.overflowY;
+
+        // Check if overflow is set to scroll or auto
+        return overflowX === 'scroll' || overflowX === 'auto' ||
+               overflowY === 'scroll' || overflowY === 'auto';
+    }
+
+    // Make element focusable if it has overflow styles
+    function makeFocusableIfOverflow(element) {
+        if (!element || element.hasAttribute('data-i20-scrollable-focus-fixed')) return;
+
+        if (hasOverflowStyles(element)) {
+            console.error('[i20] Making scrollable element focusable:', element);
+            // Preserve existing tabindex if present
+            if (!element.hasAttribute('tabindex')) {
+                element.setAttribute('tabindex', '0');
+            }
+            // Mark as processed
+            element.setAttribute('data-i20-scrollable-focus-fixed', 'true');
+
+            // Add focus-visible class support for consistent styling
+            element.classList.add('i20-scrollable-focusable');
+
+            // Also ensure focus styles work (CSS handles this, but ensure no outline conflicts)
+            element.style.setProperty('--i20-scrollable-focusable', 'true', 'important');
+        }
+    }
+
+    // Process all matching elements
+    function processScrollableElements() {
+        console.error('[i20] Processing scrollable elements...');
+        SCROLLABLE_SELECTORS.forEach(selector => {
+            try {
+                const elements = doc.querySelectorAll(selector);
+                console.error('[i20] Selector:', selector, 'found:', elements.length, 'elements');
+                elements.forEach(makeFocusableIfOverflow);
+            } catch (e) {
+                console.error('[i20] Invalid selector:', selector, e);
+            }
+        });
+    }
+
+    // Initial processing - run immediately and on DOMContentLoaded
+    function runInitial() {
+        console.error('[i20] Running initial scrollable element processing');
+        processScrollableElements();
+    }
+
+    if (doc.readyState === 'loading') {
+        doc.addEventListener('DOMContentLoaded', runInitial);
+    } else {
+        runInitial();
+    }
+
+    // Also run after a short delay to catch elements rendered after initial load
+    setTimeout(runInitial, 100);
+    setTimeout(runInitial, 500);
+    setTimeout(runInitial, 1000);
+
+    // Handle Streamlit rerenders via MutationObserver on parent document
+    const observer = new win.MutationObserver((mutations) => {
+        let shouldProcess = false;
+
+        for (const mutation of mutations) {
+            // Check if new nodes were added that might be scrollable
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === win.Node.ELEMENT_NODE) {
+                        // Check if the added node matches our selectors or contains matches
+                        let matches = false;
+                        SCROLLABLE_SELECTORS.forEach(selector => {
+                            try {
+                                if (node.matches && node.matches(selector)) {
+                                    matches = true;
+                                } else if (node.querySelectorAll) {
+                                    if (node.querySelectorAll(selector).length > 0) {
+                                        matches = true;
+                                    }
+                                }
+                            } catch (e) {
+                                // Ignore invalid selectors
+                            }
+                        });
+                        if (matches) {
+                            shouldProcess = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            // Also check for attribute changes on existing elements (e.g., style changes)
+            if (mutation.type === 'attributes' &&
+                (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                const target = mutation.target;
+                if (target && target.nodeType === win.Node.ELEMENT_NODE) {
+                    SCROLLABLE_SELECTORS.forEach(selector => {
+                        try {
+                            if (target.matches && target.matches(selector)) {
+                                shouldProcess = true;
+                            }
+                        } catch (e) {}
+                    });
+                }
+            }
+        }
+
+        if (shouldProcess) {
+            // Defer to next tick to let layout settle
+            win.requestAnimationFrame(processScrollableElements);
+        }
+    });
+
+    observer.observe(doc.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+    });
+
+    // Also re-check on window resize (viewport changes can affect scrollability)
+    let resizeTimeout;
+    win.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(processScrollableElements, 100);
+    });
+
+    // Expose for manual control
+    win.i20ScrollableFocusFix = {
+        process: processScrollableElements,
+        hasOverflowStyles: hasOverflowStyles
+    };
+
+    console.error('[i20] Scrollable region focus fix initialized (iframe -> parent)');
+})();
+</script>
+'''
+
+
 # =============================================================================
 # TOUCH TARGET UTILITIES
 # =============================================================================

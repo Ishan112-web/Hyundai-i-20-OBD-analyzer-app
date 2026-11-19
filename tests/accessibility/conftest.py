@@ -100,3 +100,15 @@ def navigate_to_page(page: Page, page_dest: Dict[str, Any]) -> str:
     page.wait_for_load_state("networkidle")
     page.wait_for_timeout(1000)
     return page.url
+
+
+def print_console_errors(page: Page, test_name: str):
+    """Print console errors for debugging."""
+    if page.console_errors:
+        print(f"\n=== CONSOLE ERRORS for {test_name} ===")
+        for err in page.console_errors:
+            print(f"  [{err['type'].upper()}] {err['text']}")
+    if page.page_errors:
+        print(f"\n=== PAGE ERRORS for {test_name} ===")
+        for err in page.page_errors:
+            print(f"  [ERROR] {err['message']}")

@@ -44,10 +44,12 @@ from .ui.accessibility import (
     render_persistent_live_regions,
     render_reduced_motion_detection_script,
     render_landmark_fix_script,
-    render_footer,
     get_touch_target_css,
     render_scrollable_region_focus_fix_script,
+    render_scrollable_region_focus_fix_script_for_parent,
 )
+
+import streamlit.components.v1 as components
 
 
 # =============================================================================
@@ -407,10 +409,16 @@ def render_shell(
     st.markdown(render_skip_link("main-content"), unsafe_allow_html=True)
     st.markdown(render_persistent_live_regions(), unsafe_allow_html=True)
 
-    # Inject scripts via st.html with unsafe_allow_javascript=True for execution in main page context
-    st.html(render_reduced_motion_detection_script(), unsafe_allow_javascript=True)
-    st.html(render_landmark_fix_script(), unsafe_allow_javascript=True)
-    st.html(render_scrollable_region_focus_fix_script(), unsafe_allow_javascript=True)
+    # Inject accessibility fix via st.components.v1.html() with parent window access
+    # This renders in an iframe but uses window.parent to access main document
+    import sys
+    print("[DEBUG shell.py] Calling components.html() for scrollable focus fix", file=sys.stderr)
+    components.html(
+        render_scrollable_region_focus_fix_script_for_parent(),
+        height=0,
+        width=0,
+    )
+    print("[DEBUG shell.py] components.html() returned", file=sys.stderr)
 
     st.markdown(f"<style>{get_touch_target_css()}</style>", unsafe_allow_html=True)
 
@@ -477,6 +485,12 @@ def render_shell(
         st.error(f"Unknown page: {current_page}")
 
     # Render footer with contentinfo landmark AFTER page content (at bottom of page)
-    st.markdown(render_footer(), unsafe_allow_html=True)
+    st.markdown('''
+    <footer class="i20-footer" role="contentinfo">
+        <div class="i20-footer-content">
+            <p>i20 AI Garage &copy; 2024 &mdash; Professional Automotive Diagnostic Platform</p>
+        </div>
+    </footer>
+    ''', unsafe_allow_html=True)
 
     return ShellRenderResult(current_page=current_page, page_changed=page_changed)

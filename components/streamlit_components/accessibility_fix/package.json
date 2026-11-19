@@ -1,0 +1,16 @@
+{
+  "name": "streamlit-accessibility-fix",
+  "version": "0.1.0",
+  "description": "Custom Streamlit component for accessibility fixes",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "streamlit-component-lib": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
