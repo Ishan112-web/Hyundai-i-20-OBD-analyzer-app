@@ -117,7 +117,7 @@ i20-AI/
 │   └── charts.py
 │
 ├── rules/                 # YAML rule definitions (7 categories)
-├── tests/                 # 326 tests (database, AI, OBD, rules, reports)
+├── tests/                 # Unit, integration, AI, accessibility and browser tests
 ├── data/                  # SQLite database (auto-created)
 └── reports/               # Exported reports
 ```
@@ -174,17 +174,76 @@ i20-AI/
 
 ---
 
-## Testing
+## Testing & Quality Assurance
+
+### Verified Test Results
+
+| Test Suite | Result | Status |
+|---|---:|---|
+| Unit & Integration Tests | 415/415 passed | ✅ Passed |
+| AI Core Tests | 93/93 passed | ✅ Passed |
+| Accessibility Tests (axe-core) | 63/63 passed | ✅ Passed |
+| Responsive Visual Tests (Desktop/Laptop) | 26/26 passed | ✅ Passed |
+| Design Token Validation | Passed | ✅ Passed |
+
+> **Note:** Test counts represent separately reported suites and may overlap. They must not be added together to calculate a unique test total.
+
+### Scope Clarifications
+
+- **Accessibility scans** cover 7 viewport configurations (desktop, laptop, tablet landscape, tablet portrait, mobile, mobile small, mobile minimum) across 9 main pages + 4 standalone report pages.
+- **Responsive visual baselines** cover desktop (1440×900) and laptop (1100×800) testing. Mobile and tablet visual regression is documented but not included in the 26 passed baseline tests.
+- **Native Streamlit component limitations** (touch targets, focus styles, light theme) are documented in `docs/FINAL_ACCESSIBILITY_VERIFICATION.md` and tracked for future sprints.
+- **Physical adapter and live vehicle validation** have not been performed. The application runs in simulation mode by default.
+- Automated axe-core results alone do not constitute full WCAG 2.1 AA compliance; manual testing with screen readers is recommended.
+
+### Test Commands
+
+**Prerequisites:** Virtual environment activated, dependencies installed, LM Studio running for AI tests, Streamlit app running on port 8501 for browser/accessibility tests, Playwright browsers installed (`playwright install chromium`).
 
 ```powershell
+# Activate virtual environment
 .venv\Scripts\activate
-pytest tests/ -v              # All 326 tests
-pytest tests/test_rule_engine.py -v      # Rule engine (32 tests)
-pytest tests/test_diagnostic_engine.py -v # AI diagnostics (37 tests)
-pytest tests/test_report_generator.py -v  # Reports (20 tests)
+
+# Unit & integration tests (415 tests)
+pytest tests/ -v --ignore=tests/browser --ignore=tests/accessibility
+
+# AI core tests (93 tests)
+pytest tests/test_ai_service.py tests/test_diagnostic_engine.py tests/test_database.py tests/test_rule_engine.py tests/test_obd_service.py -v
+
+# Accessibility tests (axe-core, 63 tests) — requires running Streamlit app
+pytest tests/accessibility/test_axe_core.py -v
+
+# Responsive visual tests (desktop/laptop, 26 tests) — requires running Streamlit app and Playwright
+pytest tests/browser/ -v -k "desktop or laptop"
+
+# Design token validation (CI check)
+python scripts/check_token_usage.py
 ```
 
 ---
+
+### Local AI Integration Testing
+
+| Parameter | Value |
+|---|---|
+| **Provider** | LM Studio (Local Inference Server) |
+| **Model** | `qwen2.5-3b-instruct` |
+| **Endpoint** | `http://localhost:1234/v1` |
+| **AI Core Tests** | 93/93 passed |
+| **Observed Warm Chat Latency** | ~0.7 seconds |
+| **Observed Structured Diagnostic Latency** | ~24 seconds |
+
+> Latency figures are observed results, not performance guarantees. The application does not auto-load the model; LM Studio must be running with the model loaded and server started (Developer → Start Server). Full verification details: `docs/LOCAL_AI_INTEGRATION_VERIFICATION.md`.
+
+### Hardware Validation Status
+
+- OBD-II software implementation and simulation testing are complete.
+- Physical ELM327 adapter testing is **pending** (no hardware available).
+- Live vehicle and ECU validation are **pending**.
+- The application runs in **simulation mode by default**.
+- Hardware validation instructions and expected results: `docs/HARDWARE_VALIDATION_RESULTS.md`.
+
+**Important:** Clearly distinguish simulation testing from real vehicle testing. No claim of physical ECU communication testing is made.
 
 ## Development Phases
 
