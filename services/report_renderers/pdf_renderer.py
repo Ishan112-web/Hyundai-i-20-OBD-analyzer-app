@@ -663,18 +663,18 @@ class PDFRenderer:
                 story.append(Spacer(1, 8))
                 story.append(Paragraph("Primary Diagnosis", self.styles['SubSectionHeading']))
                 pd = ai.primary_diagnosis
-                story.append(Paragraph(f"<b>{pd.code}</b> - {pd.description}", self.styles['BodyText2']))
-                story.append(Paragraph(f"Confidence: {pd.confidence:.0%} | Severity: {pd.severity.value.upper()}", self.styles['SmallText']))
+                story.append(Paragraph(f"<b>{pd['code']}</b> - {pd['description']}", self.styles['BodyText2']))
+                story.append(Paragraph(f"Confidence: {pd['confidence']:.0%} | Severity: {pd['severity'].upper()}", self.styles['SmallText']))
 
-                if pd.probable_causes:
+                if pd.get('probable_causes'):
                     story.append(Spacer(1, 4))
                     story.append(Paragraph("<b>Probable Causes:</b>", self.styles['BodyText2']))
-                    for cause in pd.probable_causes:
-                        cause_text = f"• {cause.cause} ({cause.confidence:.0%} confidence, {cause.urgency})"
+                    for cause in pd['probable_causes']:
+                        cause_text = f"• {cause['cause']} ({cause['confidence']:.0%} confidence, {cause['urgency']})"
                         story.append(Paragraph(cause_text, self.styles['BulletText']))
-                        story.append(Paragraph(f"  {cause.explanation}", self.styles['SmallText']))
-                        if cause.verification_steps:
-                            story.append(Paragraph(f"  Verification: {', '.join(cause.verification_steps)}", self.styles['SmallText']))
+                        story.append(Paragraph(f"  {cause['explanation']}", self.styles['SmallText']))
+                        if cause.get('verification_steps'):
+                            story.append(Paragraph(f"  Verification: {', '.join(cause['verification_steps'])}", self.styles['SmallText']))
 
             if ai.safety_warnings:
                 story.append(Spacer(1, 8))

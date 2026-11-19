@@ -226,22 +226,27 @@
 - `components/ui/components.py` — Accessible button, forms, tables, wizard, alerts, sidebar, top bar
 - `components/charts_v2.py` — Accessible data tables, reduced motion support for all 8 chart types
 
-**Automated Test Results (axe-core + Playwright):**
+**Automated Test Results (axe-core + Playwright) — ALL 63 PASS (2026-11-19):**
 | Viewport | Pages Passing | Total | Pass Rate | Notes |
 |----------|--------------|-------|-----------|-------|
 | Desktop 1440×900 | 9 | 9 | 100% | ✅ All pass |
 | Laptop 1100×800 | 9 | 9 | 100% | ✅ All pass |
-| Tablet 900×768 | 0 | 9 | 0% | ⚠️ `scrollable-region-focusable` on Streamlit `<pre>` elements |
-| Tablet Portrait 768×1024 | 0 | 9 | 0% | ⚠️ Same issue |
-| Mobile 390×844 | 0 | 9 | 0% | ⚠️ Same issue |
-| Mobile Small 360×800 | 0 | 9 | 0% | ⚠️ Same issue |
-| Mobile Minimum 320×700 | 0 | 9 | 0% | ⚠️ Same issue |
-| **Total** | **18** | **63** | **28.6%** | **Desktop/Laptop pass; Mobile/Tablet fail on Streamlit native `<pre>`** |
+| Tablet 900×768 | 9 | 9 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| Tablet Portrait 768×1024 | 9 | 9 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| Mobile 390×844 | 9 | 9 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| Mobile Small 360×800 | 9 | 9 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| Mobile Minimum 320×700 | 9 | 9 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| **Total** | **63** | **63** | **100%** | **All viewports pass** |
+
+**Scrollable Region Focus Fix (2026-11-19):**
+- **Root Cause**: Streamlit's `<pre>` elements (`.st-emotion-cache-kg09s`) for code blocks have `overflow-x: auto` on mobile but lack `tabindex="0"`, violating WCAG 2.1 SC 2.1.1 (Keyboard) / axe-core `scrollable-region-focusable`
+- **Solution**: `components/ui/accessibility.py` → `render_scrollable_region_focus_fix_script_for_parent()` — JavaScript injected via `st.components.v1.html()` with `window.parent` DOM access
+- **Mechanism**: MutationObserver watches for Streamlit rerenders; adds `tabindex="0"` to elements matching `.st-emotion-cache-kg09s` and other scrollable selectors with computed `overflow: auto/scroll`; preserves existing tabindex; adds `data-i20-scrollable-focus-fixed` marker; visible focus styles via CSS in `styles.py`
+- **Verified**: Playwright injection test (63/63 pass) → Streamlit integration (63/63 pass)
 
 **Known Limitations (Streamlit Native Components):**
-1. `scrollable-region-focusable` — Streamlit's `<pre>` code display elements lack `tabindex="0"`; cannot be fixed without modifying Streamlit internals
-2. Touch targets — Streamlit native buttons/inputs/selects don't meet 44px despite CSS; tracked for Stage 7C
-3. Focus visible on native widgets — Streamlit's focus styles are minimal; CSS in `styles.py` adds focus-visible but limited by Shadow DOM
+1. Touch targets — Streamlit native buttons/inputs/selects don't meet 44px despite CSS; tracked for Stage 7C
+2. Focus visible on native widgets — Streamlit's focus styles are minimal; CSS in `styles.py` adds focus-visible but limited by Shadow DOM
 
 **Responsive Test Results (Stage 6 Re-verification):**
 - Desktop + Laptop: 26/26 passing (100%)

@@ -410,7 +410,7 @@ OUTPUT FORMAT: JSON only, matching this schema:
     "code": "PXXXX",
     "description": "DTC description",
     "probable_causes": [
-      {"cause": "Cause description", "explanation": "Why this causes symptoms", "confidence": 0.0-1.0, "supporting_evidence": [], "contradictory_evidence": [], "verification_steps": [], "urgency": "immediate|soon|schedule|monitor"}
+      {"cause": "Cause description", "explanation": "Why this causes symptoms", "confidence": 0.0-1.0, "supporting_evidence": ["evidence1"], "contradictory_evidence": [], "verification_steps": ["step1", "step2"], "urgency": "immediate|soon|schedule|monitor"}
     ],
     "confidence": 0.0-1.0,
     "severity": "critical|major|minor|info"
@@ -418,7 +418,7 @@ OUTPUT FORMAT: JSON only, matching this schema:
   "secondary_diagnoses": [...],
   "supporting_evidence": ["evidence1", "evidence2"],
   "contradictory_evidence": ["evidence1"],
-  "recommended_checks": ["check1", "check2"],
+  "recommended_checks": ["Inspect spark plugs and ignition coils", "Monitor fuel trims and check for vacuum leaks"],
   "recommended_actions": [
     {"recommendation": "Action", "rationale": "Why", "priority": 1-10, "safety_level": "safe|caution|professional", "requires_professional": true, "supporting_evidence": [], "estimated_cost_inr": "₹X-₹Y"}
   ],
@@ -440,9 +440,11 @@ RULES:
 7. If data is insufficient, set diagnostic_status to "insufficient_data" and explain what's missing
 8. Distinguish simulation data from real data clearly
 9. Never invent readings or confirm faults without evidence
-10. Provide specific, actionable verification steps for each probable cause
+10. Provide specific, actionable verification steps for each probable cause (array of STRINGS)
 11. Include contradictory evidence when observations don't support a cause
 12. For simulation data, add disclaimer: "SIMULATION DATA — NOT ACTUAL VEHICLE DATA"
+13. recommended_checks must be an array of STRINGS (simple check descriptions), not objects
+14. verification_steps inside probable_causes must be an array of STRINGS, not objects
 """
 
     @classmethod
@@ -553,7 +555,7 @@ class DiagnosticEngine:
             diagnostic_result = self._reconcile_findings(diagnostic_result, context)
 
             # 10. Save to database
-            self._save_diagnosis(diagnostic_result, session_id)
+            self._save_diagnosis(diagnostic_result, session_id, context)
 
             logger.info(f"Diagnosis complete: {diagnosis_id} - Status: {diagnostic_result.diagnostic_status.value}")
             return diagnostic_result
@@ -940,7 +942,7 @@ class DiagnosticEngine:
 
         return result
 
-    def _save_diagnosis(self, result: DiagnosticResult, session_id: Optional[str] = None):
+    def _save_diagnosis(self, result: DiagnosticResult, session_id: Optional[str] = None, context: Optional[DiagnosticContext] = None):
         """Save diagnosis to database."""
         if not self.database_service:
             return
@@ -956,7 +958,6 @@ class DiagnosticEngine:
                     session_id = str(active["id"])
 
             # Use raw SQL to insert into ai_diagnostic_sessions table
-            # (We'll add the table creation in database service)
             import sqlite3
             with sqlite3.connect(self.database_service.db_path) as conn:
                 cursor = conn.cursor()
@@ -975,19 +976,19 @@ class DiagnosticEngine:
                     )
                 """)
 
-                vehicle_context_json = json.dumps({
-                    k: v for k, v in context.vehicle_profile.items()
-                })
-
-                dtcs_json = json.dumps(context.dtcs)
+                vehicle_context_json = json.dumps(
+                    {k: v for k, v in context.vehicle_profile.items()} if context else {}
+                )
+                dtcs_json = json.dumps(context.dtcs if context else [])
                 rule_matches_json = json.dumps(result.rule_engine_findings)
 
                 cursor.execute("""
                     INSERT INTO ai_diagnostic_sessions
-                    (session_id, vehicle_context, dtcs, ai_diagnosis, rule_matches)
-                    VALUES (?, ?, ?, ?, ?)
+                    (diagnosis_id, session_id, vehicle_context, dtcs, ai_diagnosis, rule_matches)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """, (
                     result.diagnosis_id,
+                    session_id,
                     vehicle_context_json,
                     dtcs_json,
                     diagnosis_json,

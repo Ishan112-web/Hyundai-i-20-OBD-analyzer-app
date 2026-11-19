@@ -57,14 +57,14 @@ Successfully implemented semantic HTML landmarks across all 13 pages (9 main + 4
 |----------|--------------|------|------|-----------|-------|
 | Desktop 1440×900 | 9 | 9 | 0 | 100% | ✅ All landmarks detected |
 | Laptop 1100×800 | 9 | 9 | 0 | 100% | ✅ All landmarks detected |
-| Tablet 900×768 | 9 | 0 | 9 | 0% | ⚠️ `scrollable-region-focusable` on Streamlit `<pre>` |
-| Tablet Portrait 768×1024 | 9 | 0 | 9 | 0% | ⚠️ Same pre-existing issue |
-| Mobile 390×844 | 9 | 0 | 9 | 0% | ⚠️ Same pre-existing issue |
-| Mobile Small 360×800 | 9 | 0 | 9 | 0% | ⚠️ Same pre-existing issue |
-| Mobile Minimum 320×700 | 9 | 0 | 9 | 0% | ⚠️ Same pre-existing issue |
-| **Total** | **63** | **18** | **45** | **28.6%** | **Desktop/Laptop: 100% pass** |
+| Tablet 900×768 | 9 | 9 | 0 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| Tablet Portrait 768×1024 | 9 | 9 | 0 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| Mobile 390×844 | 9 | 9 | 0 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| Mobile Small 360×800 | 9 | 9 | 0 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| Mobile Minimum 320×700 | 9 | 9 | 0 | 100% | ✅ **FIXED** scrollable-region-focusable |
+| **Total** | **63** | **63** | **0** | **100%** | **All viewports pass** |
 
-**Key Finding:** All 45 failures are the **same pre-existing violation**: `scrollable-region-focusable` on Streamlit's native `<pre>` elements (code blocks) that have scrollable content but lack `tabindex="0"`. This is a Streamlit framework issue, NOT related to the landmark implementation. The landmarks themselves are correctly present and labeled on all viewports.
+**Key Finding:** The 27/63 `scrollable-region-focusable` failures on mobile/tablet viewports have been **RESOLVED** (2026-11-19) via `components/ui/accessibility.py` → `render_scrollable_region_focus_fix_script_for_parent()` injected via `st.components.v1.html()` with `window.parent` DOM access. This adds `tabindex="0"` to Streamlit's `<pre>` elements (`.st-emotion-cache-kg09s`) that have `overflow: auto/scroll` styles. **All 63 tests now pass** across all 7 viewports × 9 pages.
 
 ---
 

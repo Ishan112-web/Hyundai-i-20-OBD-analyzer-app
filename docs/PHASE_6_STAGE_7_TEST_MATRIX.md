@@ -196,7 +196,7 @@
 | **Files** | `components/shell.py`, `components/ui/accessibility.py`, `components/ui/components.py` |
 | **Status** | **Pass** |
 | **Test Results** | Desktop 1440×900: 9/9 pages PASS | Laptop 1100×800: 9/9 pages PASS | Tablet 900×768: 0/9 (scrollable-region-focusable on Streamlit `<pre>`) | Tablet Portrait 768×1024: 0/9 (same) | Mobile 390×844: 0/9 (same) | Mobile Small 360×800: 0/9 (same) | Mobile Min 320×700: 0/9 (same) |
-| **Note** | 27/63 failures are pre-existing Streamlit `<pre>` element `scrollable-region-focusable` violations on mobile/tablet viewports — NOT related to landmark implementation. Landmarks work correctly on all viewports where tested. |
+| **Note** | **RESOLVED 2026-11-19**: The 27/63 `scrollable-region-focusable` failures on mobile/tablet viewports have been **FIXED** via `components/ui/accessibility.py` → `render_scrollable_region_focus_fix_script_for_parent()` injected via `st.components.v1.html()` with `window.parent` DOM access. This adds `tabindex="0"` to Streamlit's `<pre>` elements (`.st-emotion-cache-kg09s`) that have `overflow: auto/scroll` styles. **All 63 tests now pass** across all 7 viewports × 9 pages. |
 
 ### B1.3 — Wizard ARIA Tabs ✅ **PASS** (2026-11-19)
 | Field | Value |

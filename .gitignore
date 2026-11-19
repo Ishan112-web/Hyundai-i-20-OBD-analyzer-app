@@ -97,3 +97,18 @@ dmypy.json
 
 # Profiling
 *.prof
+
+# Raw AI responses & debug outputs
+raw_response*.txt
+debug_page.html
+test_*.py
+!tests/test_*.py
+
+# Runtime artifacts
+artifacts/phase_6_stage_6/screenshots/*/full*.png
+
+# Local database files (user-specific)
+data/i20_garage.db
+
+# OS / temp
+nul

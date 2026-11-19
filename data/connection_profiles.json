@@ -5,8 +5,8 @@
     "protocol": "AUTO",
     "adapter_type": "usb",
     "friendly_name": "Test",
-    "last_connected": "2026-11-19T23:38:29.590715",
-    "success_count": 423,
+    "last_connected": "2026-11-20T01:15:58.563509",
+    "success_count": 451,
     "failure_count": 0
   },
   "COM3:38400:auto": {
@@ -15,8 +15,8 @@
     "protocol": "auto",
     "adapter_type": "usb",
     "friendly_name": "COM3 @ 38400",
-    "last_connected": "2026-11-19T23:38:40.028730",
-    "success_count": 97,
+    "last_connected": "2026-11-20T01:16:09.097088",
+    "success_count": 104,
     "failure_count": 0
   }
 }

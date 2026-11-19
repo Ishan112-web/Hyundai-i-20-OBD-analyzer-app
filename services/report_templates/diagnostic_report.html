@@ -163,7 +163,7 @@
             <div style="font-weight: 600; margin-bottom: 4px;">{{ ai_diagnosis.primary_diagnosis.code }} - {{ ai_diagnosis.primary_diagnosis.description }}</div>
             <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;">
                 Confidence: {{ "%.0f"|format(ai_diagnosis.primary_diagnosis.confidence * 100) }}% •
-                Severity: <span class="severity-badge severity-{{ ai_diagnosis.primary_diagnosis.severity.value.lower() }}">{{ ai_diagnosis.primary_diagnosis.severity.value }}</span>
+                Severity: <span class="severity-badge severity-{{ ai_diagnosis.primary_diagnosis.severity.lower() }}">{{ ai_diagnosis.primary_diagnosis.severity }}</span>
             </div>
             {% if ai_diagnosis.primary_diagnosis.probable_causes %}
             <div style="margin-top: 12px;">
@@ -195,7 +195,7 @@
             <div style="font-weight: 600;">{{ sec.code }} - {{ sec.description }}</div>
             <div style="font-size: 0.85rem; color: var(--text-secondary);">
                 Confidence: {{ "%.0f"|format(sec.confidence * 100) }}% •
-                Severity: <span class="severity-badge severity-{{ sec.severity.value.lower() }}">{{ sec.severity.value }}</span>
+                Severity: <span class="severity-badge severity-{{ sec.severity.lower() }}">{{ sec.severity }}</span>
             </div>
             {% if sec.relationship_to_primary %}
             <div style="font-size: 0.85rem; margin-top: 4px; color: var(--accent-purple);">{{ sec.relationship_to_primary }}</div>
