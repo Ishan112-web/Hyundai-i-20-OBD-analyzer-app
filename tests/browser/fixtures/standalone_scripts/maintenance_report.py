@@ -1,0 +1,3 @@
+import streamlit as st
+from modules.reports import render_maintenance_report_page
+render_maintenance_report_page()

@@ -33,7 +33,7 @@ from modules.performance import render_performance
 from modules.maintenance import render_maintenance
 from modules.vehicle_profile import render_vehicle_profile
 from modules.ai_assistant import render_ai_assistant
-from modules.obd_connection import render_connection_wizard
+from modules.obd_connection import render_obd_connection as render_connection_wizard
 from modules.reports import render_reports_page
 
 # Import shell components
@@ -87,7 +87,7 @@ def initialize_services():
             obd_service = get_obd_service()
 
             # Check AI connection
-            st.session_state.ai_connected = ai_service.is_available()
+            st.session_state.ai_connected = ai_service.check_connection()
 
             # Check OBD connection
             obd_status = obd_service.get_status()
@@ -245,7 +245,7 @@ def render_settings():
                     ai_service.model = lm_studio_model
                     ai_service.temperature = lm_studio_temp
                     ai_service.timeout = lm_studio_timeout
-                    result = ai_service.is_available()
+                    result = ai_service.check_connection()
                     if result:
                         st.success("✅ AI connection successful!")
                         st.session_state.ai_connected = True

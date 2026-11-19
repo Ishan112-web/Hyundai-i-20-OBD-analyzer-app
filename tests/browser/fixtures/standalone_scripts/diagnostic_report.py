@@ -1,0 +1,3 @@
+import streamlit as st
+from modules.reports import render_diagnostic_report_page
+render_diagnostic_report_page()

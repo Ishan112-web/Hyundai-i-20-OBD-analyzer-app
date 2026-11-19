@@ -71,6 +71,7 @@ from components.ui import (
     TEXT_PRIMARY,
     TEXT_SECONDARY,
     TEXT_MUTED,
+    TEXT_ON_ACCENT,
     SURFACE_PRIMARY,
     SURFACE_SECONDARY,
     BORDER_DEFAULT,
@@ -866,7 +867,7 @@ def _render_diagnostics_tab(obd_service: OBDService):
                                     width: 24px; height: 24px;
                                     border-radius: 50%;
                                     background: {ACCENT_PRIMARY};
-                                    color: white;
+                                    color: {TEXT_ON_ACCENT};
                                     display: flex;
                                     align-items: center;
                                     justify-content: center;

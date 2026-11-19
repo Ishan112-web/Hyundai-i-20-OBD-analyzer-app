@@ -518,7 +518,7 @@ def render_preview_tab():
     section_header("Report Preview", "Preview your generated report before downloading")
 
     if st.session_state.report_html:
-        st.markdown("### HTML Preview")
+        section_header("HTML Preview", level=3)
         alert("This is a preview of the generated HTML report. Interactive elements may not work in the iframe.", variant=AlertVariant.INFO)
 
         # Create a download link for the HTML
@@ -551,7 +551,7 @@ def render_preview_tab():
         st.components.v1.html(html_content, height=800, scrolling=True)
 
     elif st.session_state.report_pdf:
-        st.markdown("### PDF Report Generated")
+        section_header("PDF Report Generated", level=3)
         alert("PDF preview is not available in-browser. Use the Download tab to save and open the PDF.", variant=AlertVariant.INFO)
 
         # Show PDF info
@@ -564,7 +564,7 @@ def render_preview_tab():
         """, unsafe_allow_html=True)
 
     elif st.session_state.get("batch_results"):
-        st.markdown("### Batch Generation Results")
+        section_header("Batch Generation Results", level=3)
         results = st.session_state.batch_results
         # Use responsive grid for batch results
         st.markdown(f'<div style="{AUTO_FIT_CARD_CSS}">', unsafe_allow_html=True)
@@ -600,7 +600,7 @@ def render_download_tab():
     section_header("Download Reports", "Download your generated reports in HTML or PDF format")
 
     if st.session_state.report_html:
-        st.markdown("### Current Report (HTML)")
+        section_header("Current Report (HTML)", level=3)
         html_content = st.session_state.report_html
         report_info = st.session_state.generated_report
 
@@ -654,7 +654,7 @@ def render_download_tab():
             generate_pdf_version(report_info)
 
     elif st.session_state.report_pdf:
-        st.markdown("### Current Report (PDF)")
+        section_header("Current Report (PDF)", level=3)
         pdf_bytes = st.session_state.report_pdf
         report_info = st.session_state.generated_report
 
@@ -698,7 +698,7 @@ def render_download_tab():
         )
 
     elif st.session_state.get("batch_results"):
-        st.markdown("### Batch Generated Reports")
+        section_header("Batch Generated Reports", level=3)
         results = st.session_state.batch_results
 
         # Use responsive grid for batch download buttons

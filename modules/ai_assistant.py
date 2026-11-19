@@ -329,7 +329,7 @@ def render_diagnostic_interface(ai, db):
 
     # Symptoms input
     st.markdown(f"<div style='margin-top: {GAP_SECTION};'></div>", unsafe_allow_html=True)
-    st.markdown("#### Or describe symptoms")
+    section_header("Or describe symptoms", level=4)
     symptoms = text_input(
         label="Symptoms",
         placeholder="e.g., Engine misfire at idle, rough running, check engine light flashing, coolant temp rising...",

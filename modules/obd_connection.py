@@ -62,7 +62,7 @@ from components.ui import (
     FONT_SIZE_H3, FONT_SIZE_H2, FONT_SIZE_H4,
     FONT_FAMILY_MONO, FONT_WEIGHT_NUMERIC,
     AUTO_FIT_CARD_CSS, AUTO_FIT_METRIC_CSS,
-    BADGE_VARIANT,
+    BadgeVariant,
 )
 
 

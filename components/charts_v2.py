@@ -3,9 +3,15 @@ i20 AI Garage - Token-Driven Plotly Chart Factory
 
 Replaces components/charts.py with design token-driven chart creation.
 All colors, typography, spacing, and layout derived from design tokens.
+
+Accessibility Features (WCAG 2.1 AA):
+- Accessible data tables for all chart types (SC 1.1.1)
+- aria-hidden on visual charts with alternative data tables
+- Reduced motion support (SC 2.3.3)
+- Color-independent information (patterns, labels) (SC 1.4.1)
 """
 
-from typing import Final, Literal, Optional, Any
+from typing import Final, Literal, Optional, Any, List, Dict, Tuple
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -42,6 +48,17 @@ from .ui.tokens import (
     SHADOW_MD,
     # Chart tokens
     GAUGE_THRESHOLD_TOKENS, CHART_LAYOUT_DEFAULTS,
+)
+
+# Import accessibility utilities
+from .ui.accessibility import (
+    render_accessible_chart_container,
+    ChartAccessibilityProps,
+    render_accessible_table_wrapper,
+    render_table_caption,
+    render_table_header,
+    TableCaptionProps,
+    TableHeaderProps,
 )
 
 
@@ -94,6 +111,7 @@ def get_base_layout(
     xaxis_title: str = "",
     yaxis_title: str = "",
     yaxis2_title: str = "",
+    reduced_motion: bool = False,
     **kwargs
 ) -> go.Layout:
     """
@@ -110,6 +128,7 @@ def get_base_layout(
         xaxis_title: X-axis title
         yaxis_title: Primary Y-axis title
         yaxis2_title: Secondary Y-axis title
+        reduced_motion: Whether to disable transitions (respects prefers-reduced-motion)
         **kwargs: Additional layout overrides
 
     Returns:
@@ -161,6 +180,9 @@ def get_base_layout(
                     borderwidth=1,
                     font=dict(color=TEXT_SECONDARY, size=11),
                 )
+
+    # Transition config based on reduced motion
+    transition_duration = 0 if reduced_motion else 200
 
     layout = go.Layout(
         # Base styling
@@ -255,9 +277,9 @@ def get_base_layout(
         ),
         # Spikelines
         spikedistance=-1,
-        # Transitions
+        # Transitions - respect reduced motion
         transition=dict(
-            duration=200,
+            duration=transition_duration,
             easing="cubic-in-out",
         ),
         **kwargs
@@ -290,6 +312,350 @@ def get_base_layout(
         )
 
     return layout
+
+
+def get_base_layout_with_reduced_motion(
+    title: str = "",
+    height: int = 400,
+    width: Optional[int] = None,
+    show_legend: bool = True,
+    legend_orientation: Literal["h", "v"] = "h",
+    legend_position: Literal["top", "bottom", "right"] = "top",
+    margin: Optional[dict] = None,
+    xaxis_title: str = "",
+    yaxis_title: str = "",
+    yaxis2_title: str = "",
+    **kwargs
+) -> go.Layout:
+    """
+    Create a base Plotly layout with design system tokens and reduced motion support.
+    Automatically detects prefers-reduced-motion via JavaScript injection.
+
+    Returns:
+        Plotly Layout object with transition.duration = 0 if reduced motion preferred
+    """
+    # This will be overridden by JavaScript at runtime
+    # The layout is created with transition.duration=0 as default for safety
+    return get_base_layout(
+        title=title,
+        height=height,
+        width=width,
+        show_legend=show_legend,
+        legend_orientation=legend_orientation,
+        legend_position=legend_position,
+        margin=margin,
+        xaxis_title=xaxis_title,
+        yaxis_title=yaxis_title,
+        yaxis2_title=yaxis2_title,
+        reduced_motion=True,  # Default to no transitions; JS will enable if not reduced
+        **kwargs
+    )
+
+
+# =============================================================================
+# ACCESSIBLE DATA TABLE GENERATION
+# =============================================================================
+
+def generate_chart_data_table(
+    chart_id: str,
+    title: str,
+    headers: List[str],
+    rows: List[List[Any]],
+    summary: str = "",
+    caption: Optional[str] = None,
+) -> str:
+    """
+    Generate an accessible HTML data table for a chart.
+
+    Args:
+        chart_id: Unique chart identifier
+        title: Chart title
+        headers: Column headers
+        rows: Data rows
+        summary: Summary for screen readers
+        caption: Optional caption (defaults to title + " Data Table")
+
+    Returns:
+        HTML string for accessible data table
+    """
+    caption_text = caption or f"{title} - Data Table"
+
+    # Build header row
+    header_cells = []
+    for i, header in enumerate(headers):
+        header_cells.append(render_table_header(TableHeaderProps(
+            text=header,
+            scope="col",
+            id=f"{chart_id}-th-{i}",
+        )))
+
+    # Build data rows
+    row_html = []
+    for row_idx, row in enumerate(rows):
+        cells = []
+        for col_idx, cell in enumerate(row):
+            cells.append(f'<td style="padding: 8px 12px; border-bottom: 1px solid {BORDER_SUBTLE};">{cell}</td>')
+        row_html.append(f'<tr style="cursor: default;">{"".join(cells)}</tr>')
+
+    table_html = f"""
+<table id="{chart_id}-data-table" class="i20-chart-data-table" role="grid" aria-describedby="{chart_id}-summary">
+    {render_table_caption(TableCaptionProps(text=caption_text, id=f"{chart_id}-caption"))}
+    <thead>
+        <tr>
+            {"".join(header_cells)}
+        </tr>
+    </thead>
+    <tbody>
+        {"".join(row_html)}
+    </tbody>
+</table>
+"""
+
+    if summary:
+        table_html = f'<div id="{chart_id}-summary" class="visually-hidden">{summary}</div>' + table_html
+
+    return render_accessible_table_wrapper(table_html, f"{chart_id}-table-wrapper")
+
+
+def generate_gauge_data_table(config: 'GaugeConfig', chart_id: str) -> str:
+    """Generate data table for gauge chart."""
+    thresholds = config.thresholds or GAUGE_THRESHOLD_TOKENS.get(config.metric.lower(), {})
+
+    headers = ["Metric", "Value", "Unit", "Status", "Min", "Max", "Green Zone", "Amber Zone", "Red Zone"]
+
+    # Determine status
+    val = config.value
+    green_max = thresholds.get("green_max", config.max_val * 0.6)
+    amber_max = thresholds.get("amber_max", config.max_val * 0.8)
+    red_max = thresholds.get("red_max", config.max_val)
+    green_min = thresholds.get("green_min", config.min_val)
+    amber_min = thresholds.get("amber_min", config.min_val)
+    red_min = thresholds.get("red_min", config.min_val)
+
+    if green_min <= val <= green_max:
+        status = "Good (Normal)"
+    elif amber_min <= val <= amber_max:
+        status = "Warning (Elevated)"
+    else:
+        status = "Critical (Out of Range)"
+
+    rows = [[
+        config.metric.replace("_", " ").title(),
+        f"{config.value:.1f}",
+        config.unit,
+        status,
+        str(config.min_val),
+        str(config.max_val),
+        f"{green_min} - {green_max}",
+        f"{amber_min} - {amber_max}",
+        f"{red_min} - {red_max}",
+    ]]
+
+    summary = f"Gauge chart showing {config.metric} at {config.value:.1f} {config.unit}. Status: {status}."
+
+    return generate_chart_data_table(
+        chart_id=chart_id,
+        title=config.title or config.metric,
+        headers=headers,
+        rows=rows,
+        summary=summary,
+    )
+
+
+def generate_line_chart_data_table(config: 'LineChartConfig', chart_id: str) -> str:
+    """Generate data table for line chart."""
+    if not config.series:
+        return generate_chart_data_table(chart_id, config.title, [], [], "No data series available")
+
+    # Build headers: X-axis + each series name
+    headers = [config.xaxis_title or "X"]
+    for series in config.series:
+        headers.append(series.name)
+
+    # Build rows: transpose data
+    max_len = max(len(s.x) for s in config.series) if config.series else 0
+    rows = []
+    for i in range(max_len):
+        row = []
+        # X value (use first series)
+        if config.series and i < len(config.series[0].x):
+            row.append(str(config.series[0].x[i]))
+        else:
+            row.append("")
+        # Y values for each series
+        for series in config.series:
+            if i < len(series.y):
+                row.append(f"{series.y[i]:.2f}")
+            else:
+                row.append("")
+        rows.append(row)
+
+    summary = f"Line chart '{config.title}' with {len(config.series)} series over {max_len} data points."
+
+    return generate_chart_data_table(
+        chart_id=chart_id,
+        title=config.title,
+        headers=headers,
+        rows=rows,
+        summary=summary,
+    )
+
+
+def generate_sparkline_data_table(config: 'SparklineConfig', chart_id: str, label: str = "Value") -> str:
+    """Generate data table for sparkline."""
+    headers = ["Index", label]
+    rows = [[str(i), f"{v:.2f}"] for i, v in enumerate(config.y)]
+    summary = f"Sparkline with {len(config.y)} data points. Range: {min(config.y):.2f} to {max(config.y):.2f}."
+
+    return generate_chart_data_table(
+        chart_id=chart_id,
+        title=f"Sparkline: {label}",
+        headers=headers,
+        rows=rows,
+        summary=summary,
+    )
+
+
+def generate_bar_chart_data_table(config: 'BarChartConfig', chart_id: str) -> str:
+    """Generate data table for bar chart."""
+    if not config.series:
+        return generate_chart_data_table(chart_id, config.title, [], [], "No data series available")
+
+    headers = [config.xaxis_title or "Category"]
+    for series in config.series:
+        headers.append(series.name)
+
+    max_len = max(len(s.x) for s in config.series) if config.series else 0
+    rows = []
+    for i in range(max_len):
+        row = []
+        if config.series and i < len(config.series[0].x):
+            row.append(str(config.series[0].x[i]))
+        else:
+            row.append("")
+        for series in config.series:
+            if i < len(series.y):
+                row.append(f"{series.y[i]:.2f}")
+            else:
+                row.append("")
+        rows.append(row)
+
+    summary = f"Bar chart '{config.title}' with {len(config.series)} series across {max_len} categories."
+
+    return generate_chart_data_table(
+        chart_id=chart_id,
+        title=config.title,
+        headers=headers,
+        rows=rows,
+        summary=summary,
+    )
+
+
+def generate_pie_chart_data_table(config: 'PieChartConfig', chart_id: str) -> str:
+    """Generate data table for pie/donut chart."""
+    headers = ["Label", "Value", "Percentage"]
+    total = sum(config.values)
+    rows = []
+    for label, value in zip(config.labels, config.values):
+        pct = (value / total * 100) if total > 0 else 0
+        rows.append([label, str(value), f"{pct:.1f}%"])
+
+    summary = f"Pie chart '{config.title}' with {len(config.labels)} segments. Total: {total:.1f}."
+
+    return generate_chart_data_table(
+        chart_id=chart_id,
+        title=config.title,
+        headers=headers,
+        rows=rows,
+        summary=summary,
+    )
+
+
+def generate_scatter_chart_data_table(config: 'ScatterConfig', chart_id: str) -> str:
+    """Generate data table for scatter chart."""
+    if not config.series:
+        return generate_chart_data_table(chart_id, config.title, [], [], "No data series available")
+
+    headers = [config.xaxis_title or "X", config.yaxis_title or "Y", "Series"]
+    if config.series and config.series[0].size:
+        headers.append("Size")
+
+    rows = []
+    for series in config.series:
+        for i in range(len(series.x)):
+            row = [str(series.x[i]), f"{series.y[i]:.2f}", series.name]
+            if series.size and i < len(series.size):
+                row.append(f"{series.size[i]:.2f}")
+            rows.append(row)
+
+    summary = f"Scatter chart '{config.title}' with {len(config.series)} series and {len(rows)} data points."
+
+    return generate_chart_data_table(
+        chart_id=chart_id,
+        title=config.title,
+        headers=headers,
+        rows=rows,
+        summary=summary,
+    )
+
+
+def generate_heatmap_data_table(config: 'HeatmapConfig', chart_id: str) -> str:
+    """Generate data table for heatmap."""
+    headers = [""] + config.x
+    rows = []
+    for y_idx, y_label in enumerate(config.y):
+        row = [y_label]
+        for x_idx in range(len(config.x)):
+            if y_idx < len(config.z) and x_idx < len(config.z[y_idx]):
+                row.append(f"{config.z[y_idx][x_idx]:.2f}")
+            else:
+                row.append("")
+        rows.append(row)
+
+    summary = f"Heatmap '{config.title}' with {len(config.y)} rows and {len(config.x)} columns."
+
+    return generate_chart_data_table(
+        chart_id=chart_id,
+        title=config.title,
+        headers=headers,
+        rows=rows,
+        summary=summary,
+    )
+
+
+def generate_comparison_chart_data_table(config: 'ComparisonConfig', chart_id: str) -> str:
+    """Generate data table for comparison chart."""
+    if not config.series:
+        return generate_chart_data_table(chart_id, config.title, [], [], "No comparison data available")
+
+    headers = [config.xaxis_title or "X"]
+    for series in config.series:
+        headers.append(series.name)
+
+    max_len = max(len(s.x) for s in config.series) if config.series else 0
+    rows = []
+    for i in range(max_len):
+        row = []
+        if config.series and i < len(config.series[0].x):
+            row.append(str(config.series[0].x[i]))
+        else:
+            row.append("")
+        for series in config.series:
+            if i < len(series.y):
+                row.append(f"{series.y[i]:.2f}")
+            else:
+                row.append("")
+        rows.append(row)
+
+    summary = f"Comparison chart '{config.title}' with {len(config.series)} sessions over {max_len} data points."
+
+    return generate_chart_data_table(
+        chart_id=chart_id,
+        title=config.title,
+        headers=headers,
+        rows=rows,
+        summary=summary,
+    )
 
 
 # =============================================================================
@@ -431,7 +797,7 @@ def create_gauge(config: GaugeConfig) -> go.Figure:
     ))
 
     fig.update_layout(
-        get_base_layout(
+        get_base_layout_with_reduced_motion(
             title="",
             height=config.height,
             margin=dict(l=20, r=20, t=10, b=20),
@@ -441,6 +807,36 @@ def create_gauge(config: GaugeConfig) -> go.Figure:
     )
 
     return fig
+
+
+def create_gauge_with_accessibility(config: GaugeConfig, chart_id: str = "") -> Tuple[go.Figure, str]:
+    """
+    Create a gauge chart with accessible data table.
+
+    Args:
+        config: Gauge configuration
+        chart_id: Unique chart ID (auto-generated if not provided)
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"gauge-{config.metric}-{str(uuid.uuid4())[:8]}"
+
+    fig = create_gauge(config)
+    data_table = generate_gauge_data_table(config, chart_id)
+    summary = f"Gauge showing {config.metric} at {config.value:.1f} {config.unit}."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=config.title or config.metric,
+        summary=summary,
+        data_table=data_table,
+        chart_type="gauge",
+    ))
+
+    return fig, accessible_html
 
 
 def create_gauge_cluster(
@@ -555,8 +951,8 @@ def create_line_chart(config: LineChartConfig) -> go.Figure:
             connectgaps=False,
         ))
 
-    # Build layout
-    layout = get_base_layout(
+    # Build layout with reduced motion support
+    layout = get_base_layout_with_reduced_motion(
         title=config.title,
         height=config.height,
         show_legend=config.show_legend,
@@ -592,6 +988,37 @@ def create_line_chart(config: LineChartConfig) -> go.Figure:
     fig.update_layout(layout)
 
     return fig
+
+
+def create_line_chart_with_accessibility(config: LineChartConfig, chart_id: str = "") -> Tuple[go.Figure, str]:
+    """
+    Create a line chart with accessible data table.
+
+    Args:
+        config: Line chart configuration
+        chart_id: Unique chart ID (auto-generated if not provided)
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"line-{str(uuid.uuid4())[:8]}"
+
+    fig = create_line_chart(config)
+    data_table = generate_line_chart_data_table(config, chart_id)
+    summary = f"Line chart '{config.title}' with {len(config.series)} series."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=config.title,
+        summary=summary,
+        data_table=data_table,
+        chart_type="line",
+        series_names=[s.name for s in config.series],
+    ))
+
+    return fig, accessible_html
 
 
 def create_multi_series_chart(
@@ -646,6 +1073,71 @@ def create_multi_series_chart(
     )
 
     return create_line_chart(config)
+
+
+def create_multi_series_chart_with_accessibility(
+    data: dict[str, list],
+    x: list,
+    title: str = "",
+    xaxis_title: str = "Time",
+    yaxis_title: str = "",
+    height: int = 350,
+    series_names: Optional[dict[str, str]] = None,
+    series_units: Optional[dict[str, str]] = None,
+    chart_id: str = "",
+) -> Tuple[go.Figure, str]:
+    """
+    Create a multi-series chart with accessible data table.
+
+    Args:
+        data: Dict mapping series keys to y-values
+        x: X-axis values
+        title: Chart title
+        xaxis_title: X-axis title
+        yaxis_title: Y-axis title
+        height: Chart height
+        series_names: Optional display names for series
+        series_units: Optional units for series
+        chart_id: Unique chart ID
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"multiseries-{str(uuid.uuid4())[:8]}"
+
+    fig = create_multi_series_chart(data, x, title, xaxis_title, yaxis_title, height, series_names, series_units)
+    data_table = generate_line_chart_data_table(
+        LineChartConfig(
+            series=[
+                LineSeries(
+                    x=x,
+                    y=y_values,
+                    name=series_names.get(key, key.replace("_", " ").title()) if series_names else key.replace("_", " ").title(),
+                    color=SERIES_PALETTE[i % len(SERIES_PALETTE)],
+                )
+                for i, (key, y_values) in enumerate(data.items())
+            ],
+            title=title,
+            xaxis_title=xaxis_title,
+            yaxis_title=yaxis_title,
+            height=height,
+        ),
+        chart_id,
+    )
+    summary = f"Multi-series chart '{title}' with {len(data)} series."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=title,
+        summary=summary,
+        data_table=data_table,
+        chart_type="line",
+        series_names=[series_names.get(k, k) if series_names else k for k in data.keys()],
+    ))
+
+    return fig, accessible_html
 
 
 # =============================================================================
@@ -713,7 +1205,7 @@ def create_sparkline(config: SparklineConfig) -> go.Figure:
         ))
 
     fig.update_layout(
-        get_base_layout(
+        get_base_layout_with_reduced_motion(
             title="",
             height=config.height,
             width=config.width,
@@ -727,6 +1219,37 @@ def create_sparkline(config: SparklineConfig) -> go.Figure:
     )
 
     return fig
+
+
+def create_sparkline_with_accessibility(config: SparklineConfig, chart_id: str = "", label: str = "Value") -> Tuple[go.Figure, str]:
+    """
+    Create a sparkline with accessible data table.
+
+    Args:
+        config: Sparkline configuration
+        chart_id: Unique chart ID (auto-generated if not provided)
+        label: Label for the data series
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"sparkline-{str(uuid.uuid4())[:8]}"
+
+    fig = create_sparkline(config)
+    data_table = generate_sparkline_data_table(config, chart_id, label)
+    summary = f"Sparkline with {len(config.y)} data points. Range: {min(config.y):.2f} to {max(config.y):.2f}."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=f"Sparkline: {label}",
+        summary=summary,
+        data_table=data_table,
+        chart_type="line",
+    ))
+
+    return fig, accessible_html
 
 
 # =============================================================================
@@ -785,7 +1308,7 @@ def create_comparison_chart(config: ComparisonConfig) -> go.Figure:
         ))
 
     fig.update_layout(
-        get_base_layout(
+        get_base_layout_with_reduced_motion(
             title=config.title,
             height=config.height,
             show_legend=True,
@@ -796,6 +1319,37 @@ def create_comparison_chart(config: ComparisonConfig) -> go.Figure:
     )
 
     return fig
+
+
+def create_comparison_chart_with_accessibility(config: ComparisonConfig, chart_id: str = "") -> Tuple[go.Figure, str]:
+    """
+    Create a comparison chart with accessible data table.
+
+    Args:
+        config: Comparison configuration
+        chart_id: Unique chart ID (auto-generated if not provided)
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"comparison-{str(uuid.uuid4())[:8]}"
+
+    fig = create_comparison_chart(config)
+    data_table = generate_comparison_chart_data_table(config, chart_id)
+    summary = f"Comparison chart '{config.title}' with {len(config.series)} sessions."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=config.title,
+        summary=summary,
+        data_table=data_table,
+        chart_type="line",
+        series_names=[s.name for s in config.series],
+    ))
+
+    return fig, accessible_html
 
 
 # =============================================================================
@@ -857,7 +1411,7 @@ def create_subplot_figure(config: SubplotConfig) -> go.Figure:
         )
 
     fig.update_layout(
-        get_base_layout(
+        get_base_layout_with_reduced_motion(
             title="",
             height=config.height,
             show_legend=False,
@@ -961,7 +1515,7 @@ def create_bar_chart(config: BarChartConfig) -> go.Figure:
             ))
 
     fig.update_layout(
-        get_base_layout(
+        get_base_layout_with_reduced_motion(
             title=config.title,
             height=config.height,
             show_legend=config.show_legend,
@@ -975,6 +1529,37 @@ def create_bar_chart(config: BarChartConfig) -> go.Figure:
     )
 
     return fig
+
+
+def create_bar_chart_with_accessibility(config: BarChartConfig, chart_id: str = "") -> Tuple[go.Figure, str]:
+    """
+    Create a bar chart with accessible data table.
+
+    Args:
+        config: Bar chart configuration
+        chart_id: Unique chart ID (auto-generated if not provided)
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"bar-{str(uuid.uuid4())[:8]}"
+
+    fig = create_bar_chart(config)
+    data_table = generate_bar_chart_data_table(config, chart_id)
+    summary = f"Bar chart '{config.title}' with {len(config.series)} series."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=config.title,
+        summary=summary,
+        data_table=data_table,
+        chart_type="bar",
+        series_names=[s.name for s in config.series],
+    ))
+
+    return fig, accessible_html
 
 
 # =============================================================================
@@ -1025,7 +1610,7 @@ def create_pie_chart(config: PieChartConfig) -> go.Figure:
     ))
 
     fig.update_layout(
-        get_base_layout(
+        get_base_layout_with_reduced_motion(
             title=config.title,
             height=config.height,
             show_legend=config.show_legend,
@@ -1035,6 +1620,37 @@ def create_pie_chart(config: PieChartConfig) -> go.Figure:
     )
 
     return fig
+
+
+def create_pie_chart_with_accessibility(config: PieChartConfig, chart_id: str = "") -> Tuple[go.Figure, str]:
+    """
+    Create a pie chart with accessible data table.
+
+    Args:
+        config: Pie chart configuration
+        chart_id: Unique chart ID (auto-generated if not provided)
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"pie-{str(uuid.uuid4())[:8]}"
+
+    fig = create_pie_chart(config)
+    data_table = generate_pie_chart_data_table(config, chart_id)
+    summary = f"Pie chart '{config.title}' with {len(config.labels)} segments. Total: {sum(config.values):.1f}."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=config.title,
+        summary=summary,
+        data_table=data_table,
+        chart_type="pie",
+        series_names=config.labels,
+    ))
+
+    return fig, accessible_html
 
 
 # =============================================================================
@@ -1102,7 +1718,7 @@ def create_scatter_chart(config: ScatterConfig) -> go.Figure:
         ))
 
     fig.update_layout(
-        get_base_layout(
+        get_base_layout_with_reduced_motion(
             title=config.title,
             height=config.height,
             show_legend=config.show_legend,
@@ -1113,6 +1729,37 @@ def create_scatter_chart(config: ScatterConfig) -> go.Figure:
     )
 
     return fig
+
+
+def create_scatter_chart_with_accessibility(config: ScatterConfig, chart_id: str = "") -> Tuple[go.Figure, str]:
+    """
+    Create a scatter chart with accessible data table.
+
+    Args:
+        config: Scatter chart configuration
+        chart_id: Unique chart ID (auto-generated if not provided)
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"scatter-{str(uuid.uuid4())[:8]}"
+
+    fig = create_scatter_chart(config)
+    data_table = generate_scatter_chart_data_table(config, chart_id)
+    summary = f"Scatter chart '{config.title}' with {len(config.series)} series."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=config.title,
+        summary=summary,
+        data_table=data_table,
+        chart_type="scatter",
+        series_names=[s.name for s in config.series],
+    ))
+
+    return fig, accessible_html
 
 
 # =============================================================================
@@ -1173,7 +1820,7 @@ def create_heatmap(config: HeatmapConfig) -> go.Figure:
     ))
 
     fig.update_layout(
-        get_base_layout(
+        get_base_layout_with_reduced_motion(
             title=config.title,
             height=config.height,
             show_legend=False,
@@ -1190,6 +1837,36 @@ def create_heatmap(config: HeatmapConfig) -> go.Figure:
     )
 
     return fig
+
+
+def create_heatmap_with_accessibility(config: HeatmapConfig, chart_id: str = "") -> Tuple[go.Figure, str]:
+    """
+    Create a heatmap with accessible data table.
+
+    Args:
+        config: Heatmap configuration
+        chart_id: Unique chart ID (auto-generated if not provided)
+
+    Returns:
+        Tuple of (Plotly Figure, accessible HTML container string)
+    """
+    if not chart_id:
+        import uuid
+        chart_id = f"heatmap-{str(uuid.uuid4())[:8]}"
+
+    fig = create_heatmap(config)
+    data_table = generate_heatmap_data_table(config, chart_id)
+    summary = f"Heatmap '{config.title}' with {len(config.y)} rows and {len(config.x)} columns."
+
+    accessible_html = render_accessible_chart_container(ChartAccessibilityProps(
+        chart_id=chart_id,
+        title=config.title,
+        summary=summary,
+        data_table=data_table,
+        chart_type="heatmap",
+    ))
+
+    return fig, accessible_html
 
 
 # =============================================================================
@@ -1393,24 +2070,30 @@ __all__ = [
     "DIAG_PALETTE",
     # Base layout
     "get_base_layout",
+    "get_base_layout_with_reduced_motion",
     "get_plotly_template",
     "I20_TEMPLATE",
     # Gauge
     "GaugeConfig",
     "create_gauge",
     "create_gauge_cluster",
+    "create_gauge_with_accessibility",
     # Line
     "LineSeries",
     "LineChartConfig",
     "create_line_chart",
     "create_multi_series_chart",
+    "create_line_chart_with_accessibility",
+    "create_multi_series_chart_with_accessibility",
     # Sparkline
     "SparklineConfig",
     "create_sparkline",
+    "create_sparkline_with_accessibility",
     # Comparison
     "ComparisonSeries",
     "ComparisonConfig",
     "create_comparison_chart",
+    "create_comparison_chart_with_accessibility",
     # Subplots
     "SubplotConfig",
     "create_subplot_figure",
@@ -1419,18 +2102,32 @@ __all__ = [
     "BarSeries",
     "BarChartConfig",
     "create_bar_chart",
+    "create_bar_chart_with_accessibility",
     # Pie
     "PieChartConfig",
     "create_pie_chart",
+    "create_pie_chart_with_accessibility",
     # Scatter
     "ScatterSeries",
     "ScatterConfig",
     "create_scatter_chart",
+    "create_scatter_chart_with_accessibility",
     # Heatmap
     "HeatmapConfig",
     "create_heatmap",
+    "create_heatmap_with_accessibility",
     # Status indicator
     "create_status_indicator",
+    # Accessibility utilities
+    "generate_chart_data_table",
+    "generate_gauge_data_table",
+    "generate_line_chart_data_table",
+    "generate_sparkline_data_table",
+    "generate_bar_chart_data_table",
+    "generate_pie_chart_data_table",
+    "generate_scatter_chart_data_table",
+    "generate_heatmap_data_table",
+    "generate_comparison_chart_data_table",
     # Legacy compatibility
     "create_gauge_chart",
     "create_multi_series_chart_legacy",

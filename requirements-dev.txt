@@ -1,0 +1,7 @@
+# i20 AI Garage - Development Dependencies
+# Browser Automation
+playwright>=1.40.0
+pytest-playwright>=0.4.0
+
+# Visual Regression (optional)
+# pillow>=9.0.0  # Already in requirements.txt

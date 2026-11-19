@@ -19,7 +19,7 @@ from .tokens import (
     BORDER_DEFAULT, BORDER_SUBTLE, BORDER_STRONG, BORDER_FOCUS,
     # Spacing
     SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_5, SPACE_6,
-    GAP_INLINE, GAP_FIELD,
+    GAP_INLINE, GAP_FIELD, GAP_SIDEBAR, PADDING_PAGE,
     # Radius
     RADIUS_SM, RADIUS_MD, RADIUS_LG, RADIUS_PILL,
     # Shadows
@@ -42,8 +42,23 @@ from .tokens import (
     SIDEBAR_WIDTH_EXPANDED, SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_TRANSITION,
     TOP_BAR_HEIGHT, TOP_BAR_BG, TOP_BAR_BORDER,
     TRANSITION_FAST, TRANSITION_NORMAL,
+    SEMANTIC_COLORS,
 )
 from .styles import CSS_VAR_PREFIX
+from .accessibility import (
+    render_accessible_status_indicator,
+    render_compact_status_indicator,
+    render_accessible_button,
+    render_accessible_text_input,
+    render_accessible_table_wrapper,
+    render_table_caption,
+    render_table_header,
+    TableCaptionProps,
+    TableHeaderProps,
+    render_focus_trap_html,
+    render_wizard_aria_tabs,
+    WizardAccessibilityProps,
+)
 
 
 # =============================================================================
@@ -79,139 +94,70 @@ class ButtonProps:
 
 def button(props: ButtonProps) -> bool:
     """
-    Render a styled button using Streamlit's native button with custom CSS.
+    Render an accessible styled button with proper ARIA and keyboard support.
+
+    Addresses WCAG 2.1.1 Keyboard, 4.1.2 Name/Role/Value.
+    Uses custom HTML button with Streamlit postMessage for click handling.
 
     Returns True if button was clicked.
     """
     # Build unique key
     btn_key = props.key or f"btn_{id(props)}"
 
-    # Variant styles
-    variant_styles = {
-        ButtonVariant.PRIMARY: {
-            "bg": ACCENT_PRIMARY,
-            "bg_hover": ACCENT_PRIMARY_HOVER,
-            "bg_active": ACCENT_PRIMARY_ACTIVE,
-            "color": TEXT_ON_ACCENT,
-            "border": "1px solid transparent",
-        },
-        ButtonVariant.SECONDARY: {
-            "bg": SURFACE_PRIMARY,
-            "bg_hover": SURFACE_INTERACTIVE,
-            "bg_active": SURFACE_SECONDARY,
-            "color": TEXT_PRIMARY,
-            "border": f"1px solid {BORDER_DEFAULT}",
-        },
-        ButtonVariant.GHOST: {
-            "bg": "transparent",
-            "bg_hover": SURFACE_INTERACTIVE,
-            "bg_active": SURFACE_SECONDARY,
-            "color": TEXT_PRIMARY,
-            "border": "1px solid transparent",
-        },
-        ButtonVariant.DANGER: {
-            "bg": STATUS_CRITICAL,
-            "bg_hover": "#c0392b",
-            "bg_active": "#a93226",
-            "color": TEXT_ON_ACCENT,
-            "border": "1px solid transparent",
-        },
+    # Variant styles mapping to semantic tokens
+    variant_map = {
+        ButtonVariant.PRIMARY: "primary",
+        ButtonVariant.SECONDARY: "secondary",
+        ButtonVariant.GHOST: "ghost",
+        ButtonVariant.DANGER: "danger",
     }
 
     # Size styles
     size_styles = {
-        ButtonSize.SM: {
-            "height": "32px",
-            "padding": f"4px {SPACE_3}",
-            "font_size": FONT_SIZE_CAPTION,
-        },
-        ButtonSize.MD: {
-            "height": BUTTON_MIN_HEIGHT,
-            "padding": f"{BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL}",
-            "font_size": BUTTON_FONT_SIZE,
-        },
-        ButtonSize.LG: {
-            "height": "48px",
-            "padding": f"{SPACE_3} {SPACE_6}",
-            "font_size": FONT_SIZE_BODY,
-        },
+        ButtonSize.SM: {"height": "32px", "padding": f"4px {SPACE_3}", "font_size": FONT_SIZE_CAPTION},
+        ButtonSize.MD: {"height": BUTTON_MIN_HEIGHT, "padding": f"{BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL}", "font_size": BUTTON_FONT_SIZE},
+        ButtonSize.LG: {"height": "48px", "padding": f"{SPACE_3} {SPACE_6}", "font_size": FONT_SIZE_BODY},
     }
 
-    v = variant_styles[props.variant]
     s = size_styles[props.size]
 
-    # Build button HTML
-    icon_html = f'<span style="display: flex; align-items: center;">{props.icon}</span>' if props.icon else ""
-    label_html = f'<span>{props.label}</span>'
+    # Build accessible button props
+    from .ui.accessibility import AccessibleButtonProps
 
-    if props.icon_position == "left":
-        content_html = f"{icon_html}{label_html}"
-    else:
-        content_html = f"{label_html}{icon_html}"
-
-    width_style = "width: 100%;" if props.full_width else ""
-    disabled_style = "opacity: 0.5; cursor: not-allowed;" if props.disabled else ""
-    disabled_attr = "disabled" if props.disabled else ""
-    aria_label = f' aria-label="{props.aria_label}"' if props.aria_label else ""
-
-    # Inject custom CSS for this button instance
-    st.markdown(f"""
-<style>
-.i20-btn-{btn_key} {{
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: {BUTTON_ICON_GAP} !important;
-  font-family: {FONT_FAMILY_BASE} !important;
-  font-size: {s['font_size']} !important;
-  font-weight: {BUTTON_FONT_WEIGHT} !important;
-  height: {s['height']} !important;
-  padding: {s['padding']} !important;
-  border-radius: {BUTTON_RADIUS} !important;
-  border: {v['border']} !important;
-  background-color: {v['bg']} !important;
-  color: {v['color']} !important;
-  cursor: {'' if props.disabled else 'pointer'} !important;
-  transition: all {TRANSITION_FAST} !important;
-  text-decoration: none !important;
-  white-space: nowrap !important;
-  line-height: 1 !important;
-  {width_style}
-  {disabled_style}
-}}
-.i20-btn-{btn_key}:hover:not(:disabled) {{
-  background-color: {v['bg_hover']} !important;
-}}
-.i20-btn-{btn_key}:active:not(:disabled) {{
-  background-color: {v['bg_active']} !important;
-}}
-.i20-btn-{btn_key}:focus-visible {{
-  outline: none !important;
-  box-shadow: {SHADOW_FOCUS} !important;
-}}
-</style>
-""", unsafe_allow_html=True)
-
-    # Render button using Streamlit (for functionality) but hide it, then render custom HTML
-    # We use a hidden Streamlit button for the actual click handling
-    clicked = st.button(
-        props.label,
-        key=btn_key,
+    accessible_props = AccessibleButtonProps(
+        id=btn_key,
+        label=props.label,
+        variant=variant_map[props.variant],
         disabled=props.disabled,
-        use_container_width=props.full_width,
-        type="primary" if props.variant == ButtonVariant.PRIMARY else "secondary",
-        help=props.aria_label or "",
+        loading=False,
+        icon=props.icon if props.icon else None,
+        icon_position=props.icon_position,
+        aria_label=props.aria_label,
+        aria_pressed=None,
+        aria_expanded=None,
+        aria_controls=None,
+        aria_describedby=None,
+        type=props.type,
+        onclick=f"window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{btn_key}', 'value': true}}, '*');" if not props.disabled else None,
+        full_width=props.full_width,
     )
 
-    # Also render the styled HTML version (hidden from screen readers, visual only)
-    # The Streamlit button handles the actual interaction
+    # Render accessible button
+    st.markdown(render_accessible_button(accessible_props), unsafe_allow_html=True)
+
+    # Also use hidden Streamlit button for functionality (as fallback)
+    # This is hidden but handles the actual click for Streamlit
     st.markdown(f"""
-<button class="i20-btn-{btn_key}" {disabled_attr} {aria_label} type="{props.type}" tabindex="-1" aria-hidden="true">
-  {content_html}
-</button>
+<button id="{btn_key}-st" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;" tabindex="-1" aria-hidden="true"></button>
 """, unsafe_allow_html=True)
 
-    return clicked
+    # Check for click via session state (set by the accessible button's onclick)
+    clicked = st.session_state.get(btn_key, False)
+    if clicked:
+        st.session_state[btn_key] = False
+        return True
+
+    return False
 
 
 def button_primary(label: str, **kwargs) -> bool:
@@ -319,10 +265,11 @@ def alert(
     message: str,
     variant: AlertVariant = AlertVariant.INFO,
     dismissible: bool = False,
-    key: str = ""
+    key: str = "",
+    auto_focus: bool = False,
 ) -> None:
     """
-    Render an alert banner.
+    Render an accessible alert banner with optional focus trap.
 
     Args:
         title: Alert title
@@ -330,6 +277,7 @@ def alert(
         variant: Alert variant
         dismissible: Whether alert can be dismissed
         key: Unique key for state management
+        auto_focus: Whether to trap focus in this alert (for critical alerts)
     """
     style = ALERT_STYLES[variant]
     icon = ALERT_ICONS[variant]
@@ -352,8 +300,19 @@ def alert(
 </button>
 """
 
+    # Add role="alert" for assertive live region behavior
+    # Add focus trap for critical alerts if auto_focus is True
+    focus_trap_html = ""
+    if auto_focus and variant in (AlertVariant.CRITICAL, AlertVariant.WARNING):
+        focus_trap_html = render_focus_trap_html(
+            container_id=alert_key,
+            enabled=True,
+            initial_focus_selector="button.i20-alert-dismiss, [tabindex]:not([tabindex='-1'])",
+            on_deactivate=""
+        )
+
     st.markdown(f"""
-<div id="{alert_key}" class="i20-alert i20-alert-{variant.value}" style="
+<div id="{alert_key}" class="i20-alert i20-alert-{variant.value}" role="alert" style="
   display: flex;
   align-items: flex-start;
   gap: {GAP_FIELD};
@@ -372,7 +331,7 @@ def alert(
     justify-content: center;
     color: {style['icon_color']};
     font-weight: bold;
-  ">{icon}</span>
+  " aria-hidden="true">{icon}</span>
   <div class="i20-alert-content" style="flex: 1; min-width: 0;">
     <div class="i20-alert-title" style="
       font-size: {FONT_SIZE_BODY};
@@ -388,6 +347,7 @@ def alert(
   </div>
   {dismiss_html}
 </div>
+{focus_trap_html}
 """, unsafe_allow_html=True)
 
 
@@ -678,6 +638,10 @@ class TableColumn:
     width: str = ""
     align: Literal["left", "center", "right"] = "left"
     format: Optional[Callable[[any], str]] = None
+    # Accessibility
+    scope: Literal["col", "row", "colgroup", "rowgroup"] = "col"
+    abbr: Optional[str] = None
+    sort_key: Optional[str] = None
 
 
 @dataclass
@@ -691,23 +655,33 @@ class TableProps:
     empty_message: str = "No data available"
     striped: bool = True
     hoverable: bool = True
+    # Accessibility
+    caption: Optional[str] = None
+    caption_id: Optional[str] = None
+    described_by: Optional[str] = None  # aria-describedby for the table
 
 
 def table(props: TableProps) -> Optional[dict]:
     """
-    Render a data table.
+    Render an accessible data table with caption, th scope, and accessible scroll wrapper.
 
     Returns the selected row data if selectable and a row was clicked.
     """
     table_key = props.key or f"table_{id(props)}"
     selected_key = f"{table_key}_selected"
 
-    # Build header
+    # Build header with proper scope
     header_cells = []
     for col in props.columns:
         width_style = f"width: {col.width};" if col.width else ""
         align_style = f"text-align: {col.align};"
-        header_cells.append(f'<th style="{width_style} {align_style} padding: {SPACE_3} {SPACE_4};">{col.header}</th>')
+        header_cells.append(render_table_header(TableHeaderProps(
+            text=col.header,
+            scope=col.scope,
+            id=f"{table_key}-th-{col.key}" if col.scope == "col" else None,
+            abbr=col.abbr,
+            sort_key=col.sort_key,
+        )))
 
     # Build rows
     row_html_parts = []
@@ -769,6 +743,29 @@ def table(props: TableProps) -> Optional[dict]:
 }}
 """
 
+    # Build table HTML
+    caption_html = ""
+    if props.caption:
+        caption_html = render_table_caption(TableCaptionProps(
+            text=props.caption,
+            id=props.caption_id or f"{table_key}-caption"
+        ))
+
+    table_html = f"""
+<table class="i20-table-{table_key}" role="grid" aria-describedby="{props.described_by}" id="{table_key}-table">
+  {caption_html}
+  <thead>
+    <tr>
+      {''.join(header_cells)}
+    </tr>
+  </thead>
+  {empty_html if not props.data else f'<tbody>{"".join(row_html_parts)}</tbody>'}
+</table>
+"""
+
+    # Wrap in accessible scroll region
+    wrapped_table = render_accessible_table_wrapper(table_html, f"{table_key}-wrapper")
+
     st.markdown(f"""
 <style>
 .i20-table-{table_key} {{
@@ -776,6 +773,16 @@ def table(props: TableProps) -> Optional[dict]:
   border-collapse: collapse;
   font-size: {TABLE_ROW_FONT_SIZE};
   color: {TABLE_ROW_FONT_COLOR};
+}}
+.i20-table-{table_key} caption {{
+  caption-side: top;
+  text-align: left;
+  font-size: {FONT_SIZE_LABEL};
+  font-weight: {FONT_WEIGHT_LABEL};
+  color: {TEXT_SECONDARY};
+  padding: {SPACE_2} {SPACE_3};
+  text-transform: uppercase;
+  letter-spacing: {LETTER_SPACING_LABEL};
 }}
 .i20-table-{table_key} th {{
   text-align: left;
@@ -797,16 +804,7 @@ def table(props: TableProps) -> Optional[dict]:
 {hover_style}
 {selected_style}
 </style>
-<div style="overflow-x: auto; border: 1px solid {BORDER_SUBTLE}; border-radius: {RADIUS_MD};">
-  <table class="i20-table-{table_key}">
-    <thead>
-      <tr>
-        {''.join(header_cells)}
-      </tr>
-    </thead>
-    {empty_html if not props.data else f'<tbody>{"".join(row_html_parts)}</tbody>'}
-  </table>
-</div>
+{wrapped_table}
 """, unsafe_allow_html=True)
 
     # Return selected row if any
@@ -988,7 +986,7 @@ def loading_overlay(message: str = "Loading...", key: str = "") -> None:
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(26, 29, 33, 0.9);
+  background: var(--i20-color-surface-app-d9);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1045,10 +1043,23 @@ class WizardProps:
 
 
 def wizard(props: WizardProps) -> None:
-    """Render a wizard stepper with content."""
+    """Render an accessible wizard stepper with ARIA tabs pattern and focus trap."""
     wizard_key = props.key or f"wizard_{id(props)}"
 
-    # Build step indicators
+    # Build step labels and IDs for ARIA tabs
+    step_labels = [step.label for step in props.steps]
+    step_ids = [f"step-{i}" for i in range(len(props.steps))]
+
+    # Render ARIA tabs pattern for step navigation
+    wizard_aria = render_wizard_aria_tabs(WizardAccessibilityProps(
+        wizard_id=wizard_key,
+        current_step=props.current_step,
+        total_steps=len(props.steps),
+        step_labels=step_labels,
+        step_ids=step_ids,
+    ))
+
+    # Build step indicators (visual)
     step_items = []
     for i, step in enumerate(props.steps):
         step_num = i + 1
@@ -1116,41 +1127,74 @@ def wizard(props: WizardProps) -> None:
 </div>
 """)
 
-    # Navigation buttons
+    # Navigation buttons - use accessible button pattern
     is_first = props.current_step == 0
     is_last = props.current_step == len(props.steps) - 1
 
     prev_disabled = is_first
     next_label = props.finish_label if is_last else props.next_label
 
+    # Build accessible navigation buttons
+    prev_btn = render_accessible_button(type('AccessibleButtonProps', (), {
+        'id': f"{wizard_key}_prev",
+        'label': props.prev_label,
+        'variant': 'secondary',
+        'disabled': prev_disabled,
+        'loading': False,
+        'icon': None,
+        'icon_position': 'start',
+        'aria_pressed': None,
+        'aria_expanded': None,
+        'aria_controls': None,
+        'aria_describedby': None,
+        'type': 'button',
+        'onclick': f"window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{wizard_key}_prev', 'value': true}}, '*');" if not prev_disabled else None,
+        'full_width': False,
+    })())
+
+    next_btn = render_accessible_button(type('AccessibleButtonProps', (), {
+        'id': f"{wizard_key}_next",
+        'label': next_label,
+        'variant': 'primary',
+        'disabled': False,
+        'loading': False,
+        'icon': None,
+        'icon_position': 'start',
+        'aria_pressed': None,
+        'aria_expanded': None,
+        'aria_controls': None,
+        'aria_describedby': None,
+        'type': 'button',
+        'onclick': f"window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{wizard_key}_next', 'value': true}}, '*');",
+        'full_width': False,
+    })())
+
+    # Add focus trap for wizard content
+    focus_trap = render_focus_trap_html(
+        container_id=f"{wizard_key}-content",
+        enabled=True,
+        initial_focus_selector="button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
+        on_deactivate=f"window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{wizard_key}_focus_trap_deactivated', 'value': true}}, '*');"
+    )
+
     st.markdown(f"""
-<div class="i20-wizard" style="
+<div class="i20-wizard" id="{wizard_key}" style="
   background-color: {SURFACE_PRIMARY};
   border: 1px solid {BORDER_DEFAULT};
   border-radius: {WIZARD_CARD_RADIUS};
   box-shadow: {WIZARD_CARD_SHADOW};
   padding: {WIZARD_CARD_PADDING};
 ">
-  <div class="i20-wizard-steps" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: {SPACE_6}; position: relative;">
-    {''.join(step_items)}
-  </div>
-  <div class="i20-wizard-content" style="min-height: 200px;">
+  {wizard_aria}
+  <div class="i20-wizard-content" id="{wizard_key}-content" style="min-height: 200px;">
     {props.content}
   </div>
   <div class="i20-wizard-actions" style="display: flex; justify-content: space-between; margin-top: {SPACE_6}; padding-top: {SPACE_4}; border-top: 1px solid {BORDER_SUBTLE};">
-    <button class="i20-btn i20-btn-secondary"
-            {'disabled' if prev_disabled else ''}
-            onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{wizard_key}_prev', 'value': true}}, '*');"
-            style="height: {BUTTON_MIN_HEIGHT}; padding: {BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL}; border-radius: {BUTTON_RADIUS}; font-size: {BUTTON_FONT_SIZE}; font-weight: {BUTTON_FONT_WEIGHT}; background: {SURFACE_PRIMARY}; color: {TEXT_PRIMARY}; border: 1px solid {BORDER_DEFAULT}; cursor: {'not-allowed' if prev_disabled else 'pointer'}; opacity: {0.5 if prev_disabled else 1}; transition: all {TRANSITION_FAST};">
-      {props.prev_label}
-    </button>
-    <button class="i20-btn i20-btn-primary"
-            onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{wizard_key}_next', 'value': true}}, '*');"
-            style="height: {BUTTON_MIN_HEIGHT}; padding: {BUTTON_PADDING_VERTICAL} {BUTTON_PADDING_HORIZONTAL}; border-radius: {BUTTON_RADIUS}; font-size: {BUTTON_FONT_SIZE}; font-weight: {BUTTON_FONT_WEIGHT}; background: {ACCENT_PRIMARY}; color: {TEXT_ON_ACCENT}; border: none; cursor: pointer; transition: all {TRANSITION_FAST};">
-      {next_label}
-    </button>
+    {prev_btn}
+    {next_btn}
   </div>
 </div>
+{focus_trap}
 """, unsafe_allow_html=True)
 
     # Handle button clicks via session state
@@ -1233,16 +1277,18 @@ def sidebar(props: SidebarProps) -> None:
                 continue
             connected = status.get("connected", False)
             status_text = status.get("text", "Unknown")
-            status_color = STATUS_SUCCESS if connected else STATUS_WARNING
-            status_dot = "●"
+            status_type = status.get("status", "neutral")
 
-            status_items.append(f"""
-<div class="i20-status-item" style="display: flex; align-items: center; gap: {GAP_INLINE}; font-size: {FONT_SIZE_BODY_SM}; color: {TEXT_SECONDARY};">
-  <span style="color: {status_color}; font-size: 0.75rem;">{status_dot}</span>
-  <span>{label}</span>
-  <span style="margin-left: auto; color: {status_color}; font-weight: {FONT_WEIGHT_LABEL};">{status_text}</span>
-</div>
-""")
+            # Use accessible status indicator with icon + text
+            status_items.append(render_accessible_status_indicator(
+                type('Props', (), {
+                    'status': status_type,
+                    'label': f"{label}: {status_text}",
+                    'icon': None,
+                    'size': 'sm',
+                    'show_text': True
+                })()
+            ))
 
         status_html = f"""
 <div class="i20-sidebar-section" style="padding: {SPACE_4} 0; border-bottom: 1px solid {BORDER_SUBTLE}; margin-bottom: {GAP_SIDEBAR};">
@@ -1285,7 +1331,8 @@ def sidebar(props: SidebarProps) -> None:
     mobile_close_btn = f"""
 <button class="i20-sidebar-mobile-close"
         onclick="window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{sidebar_key}_mobile_close', 'value': true}}, '*');"
-        style="position: absolute; top: {SPACE_3}; right: {SPACE_3}; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; border-radius: {RADIUS_SM}; color: {TEXT_SECONDARY}; font-size: 1.5rem; cursor: pointer; transition: all {TRANSITION_FAST}; z-index: 10;">
+        style="position: absolute; top: {SPACE_3}; right: {SPACE_3}; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; border-radius: {RADIUS_SM}; color: {TEXT_SECONDARY}; font-size: 1.5rem; cursor: pointer; transition: all {TRANSITION_FAST}; z-index: 10;"
+        aria-label="Close sidebar">
   <span>×</span>
 </button>
 """
@@ -1293,6 +1340,16 @@ def sidebar(props: SidebarProps) -> None:
     # Determine sidebar mode
     is_mobile_drawer = props.mobile_open
     sidebar_width = SIDEBAR_WIDTH_COLLAPSED if props.collapsed else SIDEBAR_WIDTH_EXPANDED
+
+    # Add focus trap for mobile drawer when open
+    focus_trap_html = ""
+    if is_mobile_drawer:
+        focus_trap_html = render_focus_trap_html(
+            container_id=f"{sidebar_key}-drawer",
+            enabled=True,
+            initial_focus_selector=".i20-sidebar-mobile-close, .i20-nav-item",
+            on_deactivate=f"window.parent.postMessage({{'type': 'streamlit:setComponentValue', 'key': '{sidebar_key}_mobile_close', 'value': true}}, '*');"
+        )
 
     st.markdown(f"""
 <style>
@@ -1333,28 +1390,30 @@ def sidebar(props: SidebarProps) -> None:
 .i20-sidebar-backdrop {{
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--i20-color-surface-app);
   z-index: 300;
   opacity: 0;
   visibility: hidden;
   transition: opacity {TRANSITION_FAST}, visibility {TRANSITION_FAST};
 }}
 .i20-sidebar-backdrop.open {{
-  opacity: 1;
+  opacity: 0.5;
   visibility: visible;
 }}
 </style>
 <div class="i20-sidebar i20-sidebar-drawer {'open' if is_mobile_drawer else ''}"
+     id="{sidebar_key}-drawer"
      style="width: {sidebar_width};">
   {mobile_close_btn if is_mobile_drawer else ''}
   {vehicle_html}
   {status_html}
-  <nav class="i20-sidebar-nav" style="display: flex; flex-direction: column; gap: {SPACE_1};">
+  <nav class="i20-sidebar-nav" aria-label="Main navigation" style="display: flex; flex-direction: column; gap: {SPACE_1};">
     {''.join(nav_items_html)}
   </nav>
   {collapse_btn if not is_mobile_drawer else ''}
 </div>
 {'<div class="i20-sidebar-backdrop ' + ('open' if is_mobile_drawer else '') + '"></div>' if is_mobile_drawer else ''}
+{focus_trap_html}
 """, unsafe_allow_html=True)
 
     # Handle navigation
@@ -1446,21 +1505,9 @@ def top_bar(props: TopBarProps) -> None:
             status_type = status.get("status", "neutral")
             key = status.get("key", f"status_{id(status)}")
 
-            status_colors = {
-                "success": STATUS_SUCCESS,
-                "warning": STATUS_WARNING,
-                "critical": STATUS_CRITICAL,
-                "info": STATUS_INFO,
-                "neutral": STATUS_NEUTRAL,
-            }
-            color = status_colors.get(status_type, STATUS_NEUTRAL)
+            # Use accessible compact status indicator
+            status_items.append(render_compact_status_indicator(status_type, size="sm"))
 
-            status_items.append(f"""
-<div class="i20-status-indicator" style="display: flex; align-items: center; gap: {SPACE_1}; font-size: {FONT_SIZE_CAPTION}; color: {TEXT_SECONDARY};">
-  <span style="width: 8px; height: 8px; border-radius: 50%; background: {color};"></span>
-  <span>{label}</span>
-</div>
-""")
         status_html = f'<div class="i20-top-bar-status" style="display: flex; align-items: center; gap: {GAP_FIELD};">{"".join(status_items)}</div>'
 
     # Mobile menu button

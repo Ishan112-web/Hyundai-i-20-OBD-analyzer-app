@@ -23,7 +23,7 @@ from components.charts_v2 import (
 )
 from components.ui.components import (
     card_simple, badge, button_primary, button_secondary, button_ghost,
-    alert, empty_state, spinner, section_header
+    alert, empty_state, spinner, BadgeVariant
 )
 from components.ui.tokens import (
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED,
@@ -185,16 +185,16 @@ def _render_page_header(status: Dict[str, Any]):
 
     # Determine connection badge variant
     if conn_state == "connected" and mode == "simulation":
-        badge_variant = "warning"
+        badge_variant = BadgeVariant.WARNING
         badge_label = "SIMULATION MODE"
     elif conn_state == "connected":
-        badge_variant = "success"
+        badge_variant = BadgeVariant.SUCCESS
         badge_label = "CONNECTED"
     elif conn_state == "error":
-        badge_variant = "critical"
+        badge_variant = BadgeVariant.CRITICAL
         badge_label = "CONNECTION ERROR"
     else:
-        badge_variant = "neutral"
+        badge_variant = BadgeVariant.NEUTRAL
         badge_label = "DISCONNECTED"
 
     # Render header using columns for layout
@@ -225,7 +225,7 @@ def _render_page_header(status: Dict[str, Any]):
 
     with col2:
         st.markdown("<div style='height: 100%; display: flex; align-items: center; justify-content: flex-end;'>", unsafe_allow_html=True)
-        badge(label=badge_label, variant=badge_variant, dot=True)
+        badge(label=badge_label, variant=badge_variant)
         st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -768,15 +768,14 @@ def _render_simulation_controls_html(obd, db, status: Dict[str, Any]) -> str:
         selected_attr = ' selected' if key == selected else ''
         html += f'<option value="{key}"{selected_attr}>{name}</option>'
 
-    html += """
+    html += f"""
             </div>
         </div>
         <div class="i20-scenario-description" style="
             font-size: var(--i20-font-size-sm);
             color: var(--i20-color-text-secondary);
             margin-bottom: var(--i20-spacing-md);
-        """ + f">{scenarios[selected]['description']}</div>
-
+        ">{scenarios[selected]['description']}</div>
         <div class="i20-control-buttons" style="
             display: flex;
             flex-wrap: wrap;
@@ -787,7 +786,7 @@ def _render_simulation_controls_html(obd, db, status: Dict[str, Any]) -> str:
             <button class="i20-btn i20-btn-secondary" style="flex: 1; min-width: 120px; padding: var(--i20-spacing-sm) var(--i20-spacing-md);" data-action="stop" {'disabled' if not st.session_state.get('sim_running') else ''}>■ Stop</button>
             <button class="i20-btn i20-btn-ghost" style="flex: 1; min-width: 120px; padding: var(--i20-spacing-sm) var(--i20-spacing-md);" data-action="reset">↻ Reset</button>
         </div>
-    """
+"""
 
     # Session recording controls
     if st.session_state.get("sim_running") and st.session_state.get("session_id"):

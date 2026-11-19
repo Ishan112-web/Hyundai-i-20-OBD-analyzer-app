@@ -60,8 +60,8 @@ from components.ui.components import (
     table, TableProps, TableColumn,
     spinner, skeleton, skeleton_card,
     selectbox,
-    section_header,
 )
+from components.ui.layout import section_header
 
 from components.charts_v2 import (
     create_line_chart, LineChartConfig, LineSeries,
@@ -1289,7 +1289,7 @@ def _render_session_comparison(db: DatabaseService, session_ids: List[int]):
     st.markdown(f"<div style='margin-top: {GAP_CARD};'></div>", unsafe_allow_html=True)
 
     # Comparison charts using create_comparison_chart - RESPONSIVE GRID
-    st.markdown("#### Overlay Comparison")
+    section_header("Overlay Comparison", level=4)
 
     metrics = [
         ('rpm', 'RPM', SERIES_1),

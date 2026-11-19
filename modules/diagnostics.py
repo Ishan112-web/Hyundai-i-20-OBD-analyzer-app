@@ -17,6 +17,7 @@ from config import THEME, DTC_SEVERITY, DEMO_DTCS
 from services import get_obd_service, get_database, get_diagnostic_engine, get_ai_service
 from services.obd_service import DTC as OBDDTC
 from services.diagnostic_models import DiagnosticResult, DiagnosticSeverity, DiagnosticStatus, DataSource
+from components.ui.tokens import ACCENT_SECONDARY
 
 # Rule Engine imports (Phase 3)
 try:
@@ -45,8 +46,8 @@ from components.ui.components import (
     table, TableProps, TableColumn,
     spinner, skeleton,
     selectbox,
-    section_header,
 )
+from components.ui.layout import section_header
 from components.ui.tokens import (
     # Tokens
     ACCENT_PRIMARY, ACCENT_SECONDARY,
@@ -119,7 +120,7 @@ def get_demo_dtcs() -> List[DiagnosticCode]:
 def get_severity_info(severity: str) -> Dict[str, Any]:
     """Get severity display info from config."""
     return DTC_SEVERITY.get(severity, {
-        "color": "#9b59b6",
+        "color": ACCENT_SECONDARY,
         "label": "Unknown",
         "description": "Severity information not available"
     })

@@ -39,6 +39,15 @@ from .ui import (
     TEXT_PRIMARY, TEXT_SECONDARY,
 )
 
+from .ui.accessibility import (
+    render_skip_link,
+    render_persistent_live_regions,
+    render_reduced_motion_detection_script,
+    render_landmark_fix_script,
+    render_footer,
+    get_touch_target_css,
+)
+
 
 # =============================================================================
 # NAVIGATION CONFIGURATION
@@ -129,7 +138,8 @@ def get_ai_status() -> Dict[str, Any]:
     """Get AI service status."""
     try:
         ai_service = get_ai_service()
-        available = ai_service.is_available()
+        # Fixed: use check_connection() instead of is_available()
+        available = ai_service.check_connection()
         return {
             "connected": available,
             "text": "LM Studio • qwen2.5-3b" if available else "Start LM Studio server",
@@ -392,6 +402,16 @@ def render_shell(
     # Initialize shell
     initialize_shell()
 
+    # Inject accessibility HTML elements via st.markdown (renders in component containers)
+    st.markdown(render_skip_link("main-content"), unsafe_allow_html=True)
+    st.markdown(render_persistent_live_regions(), unsafe_allow_html=True)
+
+    # Inject scripts via st.html with unsafe_allow_javascript=True for execution
+    st.html(render_reduced_motion_detection_script(), unsafe_allow_javascript=True)
+    st.html(render_landmark_fix_script(), unsafe_allow_javascript=True)
+
+    st.markdown(f"<style>{get_touch_target_css()}</style>", unsafe_allow_html=True)
+
     # Get OBD status once
     obd_status = get_obd_status_details()
 
@@ -448,10 +468,26 @@ def render_shell(
     )
 
     # Render main content container
+    st.markdown('<div id="debug-before-renderer" style="color: red;">DEBUG: Before renderer</div>', unsafe_allow_html=True)
     renderer = page_renderers.get(current_page)
     if renderer:
-        page_container(renderer)
+        try:
+            renderer()
+            st.markdown('<div id="debug-renderer-success" style="color: green;">DEBUG: Renderer returned successfully</div>', unsafe_allow_html=True)
+        except Exception as e:
+            st.markdown(f'<div id="debug-renderer-error" style="color: red;">DEBUG: Renderer error: {e}</div>', unsafe_allow_html=True)
+            st.error(f"Renderer error: {e}")
     else:
-        page_container(lambda: st.error(f"Unknown page: {current_page}"))
+        st.error(f"Unknown page: {current_page}")
+    st.markdown('<div id="debug-after-renderer" style="color: red;">DEBUG: After renderer</div>', unsafe_allow_html=True)
+
+    # Debug: check if we reach here
+    st.markdown('<div id="debug-before-footer" style="color: red;">DEBUG: Before footer render</div>', unsafe_allow_html=True)
+
+    # Render footer with contentinfo landmark AFTER page content (at bottom of page)
+    st.markdown(render_footer(), unsafe_allow_html=True)
+
+    # Debug: check if footer rendered
+    st.markdown('<div id="debug-after-footer" style="color: red;">DEBUG: After footer render</div>', unsafe_allow_html=True)
 
     return ShellRenderResult(current_page=current_page, page_changed=page_changed)

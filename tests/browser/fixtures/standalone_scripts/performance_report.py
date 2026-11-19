@@ -1,0 +1,3 @@
+import streamlit as st
+from modules.reports import render_performance_report_page
+render_performance_report_page()

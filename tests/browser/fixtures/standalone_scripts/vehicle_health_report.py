@@ -1,0 +1,3 @@
+import streamlit as st
+from modules.reports import render_vehicle_health_report_page
+render_vehicle_health_report_page()

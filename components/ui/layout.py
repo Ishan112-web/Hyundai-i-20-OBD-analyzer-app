@@ -265,7 +265,7 @@ def page_header(title: str, subtitle: str = "", icon: str = "") -> None:
 """, unsafe_allow_html=True)
 
 
-def section_header(title: str, description: str = "", action: str = "") -> None:
+def section_header(title: str, description: str = "", action: str = "", level: int = 2) -> None:
     """
     Render a section header within a page.
 
@@ -273,11 +273,15 @@ def section_header(title: str, description: str = "", action: str = "") -> None:
         title: Section title
         description: Optional description
         action: Optional action button HTML
+        level: Heading level (2, 3, or 4). Defaults to 2 for h2.
     """
+    level = max(2, min(4, level))  # Clamp to valid heading levels
+    heading_class = f"i20-h{level}"
+    heading_tag = f"h{level}"
     st.markdown(f"""
 <div class="i20-section-header" style="margin-bottom: var(--i20-gap-section); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--i20-gap-field);">
   <div>
-    <h2 class="i20-h2" style="margin: 0;">{title}</h2>
+    <{heading_tag} class="{heading_class}" style="margin: 0;">{title}</{heading_tag}>
     {f'<p class="i20-caption" style="margin: var(--i20-space-1) 0 0 0;">{description}</p>' if description else ''}
   </div>
   {f'<div>{action}</div>' if action else ''}
