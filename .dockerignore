@@ -1,0 +1,109 @@
+# i20 AI Garage - Docker Ignore Rules
+# Excludes files not needed in the container build context
+
+# Git
+.git/
+.gitignore
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Local database files (staging uses separate database)
+data/*.db
+data/*.db-journal
+data/*.sqlite
+data/*.sqlite3
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+.env.staging
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+streamlit.log
+
+# Test artifacts
+artifacts/
+htmlcov/
+.coverage
+.tox/
+
+# Reports (generated at runtime)
+reports/
+*.csv
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.egg
+*.whl
+
+# Backup files
+*.bak
+*.backup
+backups/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Documentation (not needed at runtime)
+docs/
+*.md
+!README.md
+
+# Scripts not needed in container (migration runs separately)
+scripts/database_backup.py
+scripts/database_status.py
+scripts/check_token_usage.py
+
+# Windows scripts
+run.bat
+run.ps1
+
+# Playwright browsers (installed separately if needed)
+playwright/
+
+# Raw AI responses & debug outputs
+raw_response*.txt
+debug_page.html
+test_*.py
+
+# Jupyter
+.ipynb_checkpoints
+
+# Profiling
+*.prof
+
+# Type checking
+.mypy_cache/

@@ -17,7 +17,7 @@ from threading import Thread, Event
 from config import (
     OBD_MODE, OBD_PORT, OBD_BAUDRATE, OBD_PROTOCOL,
     SIMULATION_SCENARIOS, ENGINE_SPECS, GAUGE_THRESHOLDS,
-    OBD_REAL_CONFIG, PID_POLLING_CONFIG
+    OBD_REAL_CONFIG, PID_POLLING_CONFIG, IS_STAGING, SIMULATION_INTERVAL
 )
 
 # Import new V2 Phase 1 components
@@ -209,7 +209,14 @@ class OBDService:
     """OBD-II service with simulation and real adapter support."""
 
     def __init__(self):
-        self.mode = OBDMode(OBD_MODE)
+        # STAGING OVERRIDE: Force simulation mode, disable real OBD
+        if IS_STAGING:
+            self.mode = OBDMode.SIMULATION
+            self._staging_mode = True
+        else:
+            self.mode = OBDMode(OBD_MODE)
+            self._staging_mode = False
+
         self.port = OBD_PORT
         self.baudrate = OBD_BAUDRATE
         self.protocol = OBD_PROTOCOL
@@ -218,9 +225,10 @@ class OBDService:
         self.simulation_engine = SimulationEngine()
         self.simulation_thread: Optional[Thread] = None
         self.simulation_stop_event = Event()
-        self.simulation_interval = 0.1  # 100ms = 10Hz
+        # Use config value for simulation interval (staging uses slower rate)
+        self.simulation_interval = SIMULATION_INTERVAL
 
-        # Real OBD components (V2 Phase 1)
+        # Real OBD components (V2 Phase 1) - DISABLED in staging
         self._real_adapter: Optional[RealOBDAdapter] = None
         self._connection_manager: Optional[ConnectionManager] = None
         self._pid_registry = PIDRegistry()
@@ -237,8 +245,13 @@ class OBDService:
             DTC("P0128", "Coolant Thermostat (Coolant Temperature Below Thermostat Regulating Temperature)", "minor"),
         ]
 
-        # Initialize connection manager
+        # Initialize connection manager (still created but won't connect in staging)
         self._init_connection_manager()
+
+    @property
+    def is_staging(self) -> bool:
+        """Check if running in staging mode."""
+        return self._staging_mode
 
     def _init_connection_manager(self):
         """Initialize the connection manager with callbacks."""
@@ -286,6 +299,13 @@ class OBDService:
 
     def connect(self) -> bool:
         """Establish OBD connection."""
+        # STAGING: Block real connection attempts
+        if self._staging_mode:
+            self.mode = OBDMode.SIMULATION
+            self.connection_state = ConnectionState.CONNECTED
+            logger.info("OBD Staging mode: Simulation forced, real hardware blocked")
+            return True
+
         if self.mode == OBDMode.SIMULATION:
             self.connection_state = ConnectionState.CONNECTED
             logger.info("OBD Simulation mode connected")
@@ -371,6 +391,11 @@ class OBDService:
 
     def set_mode(self, mode: OBDMode) -> bool:
         """Change OBD mode (simulation/real)."""
+        # STAGING: Block real mode
+        if self._staging_mode and mode == OBDMode.REAL:
+            logger.warning("OBD Staging mode: Cannot switch to real mode - blocked")
+            return False
+
         # Track if we should reconnect - either was connected, or switching to simulation
         was_connected = self.connection_state == ConnectionState.CONNECTED
         should_reconnect = was_connected or mode == OBDMode.SIMULATION
@@ -669,6 +694,7 @@ class OBDService:
             "current_scenario": self.simulation_engine.scenario,
             "last_update": self.last_update.isoformat() if self.last_update else None,
             "supported_pids_count": len(self.get_supported_pids()),
+            "staging_mode": self._staging_mode,
         }
 
         # Add real OBD specific info

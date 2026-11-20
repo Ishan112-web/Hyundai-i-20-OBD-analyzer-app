@@ -16,28 +16,50 @@ BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 REPORTS_DIR = BASE_DIR / "reports"
 
+# Staging mode detection
+IS_STAGING = os.getenv("STAGING", "false").lower() == "true"
+IS_PRODUCTION = os.getenv("PRODUCTION", "false").lower() == "true"
+
 # Ensure directories exist
 DATA_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
 
-# Database
-DATABASE_PATH = DATA_DIR / "i20_garage.db"
+# Database - use env var for staging/production override
+DATABASE_PATH = Path(os.getenv("DATABASE_PATH", DATA_DIR / "i20_garage.db"))
 
 # LM Studio Configuration
-LM_STUDIO_BASE_URL = os.getenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+# In staging, LM_STUDIO_BASE_URL should be unset (no local LM Studio in cloud)
+# Default only applies in local development
+if IS_STAGING:
+    LM_STUDIO_BASE_URL = os.getenv("LM_STUDIO_BASE_URL", "")
+else:
+    LM_STUDIO_BASE_URL = os.getenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
 LM_STUDIO_MODEL = os.getenv("LM_STUDIO_MODEL", "qwen2.5-3b-instruct")
 LM_STUDIO_TEMPERATURE = float(os.getenv("LM_STUDIO_TEMPERATURE", "0.7"))
 LM_STUDIO_TIMEOUT = int(os.getenv("LM_STUDIO_TIMEOUT", "30"))
 
+# AI Availability flag (computed at runtime)
+AI_AVAILABLE = None  # Set by AI service after connection check
+
 # OBD Configuration
-OBD_MODE = os.getenv("OBD_MODE", "simulation")  # "simulation" or "real"
+# STAGING OVERRIDE: Force simulation mode, ignore OBD_MODE env var
+if IS_STAGING:
+    OBD_MODE = "simulation"
+else:
+    OBD_MODE = os.getenv("OBD_MODE", "simulation")  # "simulation" or "real"
+
 OBD_PORT = os.getenv("OBD_PORT", "COM3")
 OBD_BAUDRATE = int(os.getenv("OBD_BAUDRATE", "38400"))
 OBD_PROTOCOL = os.getenv("OBD_PROTOCOL", "auto")
 
 # Simulation Configuration
-SIMULATION_INTERVAL = float(os.getenv("SIMULATION_INTERVAL", "0.5"))  # seconds
-TELEMETRY_REFRESH_INTERVAL = float(os.getenv("TELEMETRY_REFRESH_INTERVAL", "1.0"))  # seconds
+# Staging uses slower intervals to reduce CPU
+if IS_STAGING:
+    SIMULATION_INTERVAL = float(os.getenv("SIMULATION_INTERVAL", "1.0"))
+    TELEMETRY_REFRESH_INTERVAL = float(os.getenv("TELEMETRY_REFRESH_INTERVAL", "2.0"))
+else:
+    SIMULATION_INTERVAL = float(os.getenv("SIMULATION_INTERVAL", "0.5"))
+    TELEMETRY_REFRESH_INTERVAL = float(os.getenv("TELEMETRY_REFRESH_INTERVAL", "1.0"))
 
 # Vehicle Profile (Hyundai i20 Asta 2023)
 VEHICLE_INFO = {
@@ -49,7 +71,7 @@ VEHICLE_INFO = {
     "fuel_type": "Petrol",
     "market": "India",
     "ecu_tuning": "Stock",
-    "diagnostic_mode": "Simulation",
+    "diagnostic_mode": "Staging Simulation" if IS_STAGING else "Simulation",
     "vin": "MALA841CLHM123456",  # Example VIN pattern for India
 }
 
@@ -117,8 +139,8 @@ SIMULATION_SCENARIOS = {
     },
 }
 
-# AI System Prompt
-AI_SYSTEM_PROMPT = """You are i20 AI Garage, an automotive diagnostic assistant for a 2023 Hyundai i20 Asta 1.2L naturally aspirated petrol manual in India.
+# AI System Prompt (base template, staging context added at runtime)
+AI_SYSTEM_PROMPT_BASE = """You are i20 AI Garage, an automotive diagnostic assistant for a 2023 Hyundai i20 Asta 1.2L naturally aspirated petrol manual in India.
 
 Explain automotive concepts clearly.
 Distinguish measured values from simulated values.
@@ -137,9 +159,13 @@ Current Vehicle Context:
 - Fuel: Petrol (BS6)
 - Market: India
 - ECU: Stock tuning
-- Diagnostic Mode: Simulation (no real OBD connection)
+- Diagnostic Mode: {diagnostic_mode}
 
 When discussing telemetry, always clarify if values are simulated or from real OBD data."""
+
+# Build final prompt with staging context
+_diagnostic_mode = "Staging Simulation (cloud deployment, no real OBD)" if IS_STAGING else "Simulation (no real OBD connection)"
+AI_SYSTEM_PROMPT = AI_SYSTEM_PROMPT_BASE.format(diagnostic_mode=_diagnostic_mode)
 
 # UI Theme Colors
 THEME = {

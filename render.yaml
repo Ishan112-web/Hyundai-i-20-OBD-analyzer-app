@@ -1,0 +1,98 @@
+# i20 AI Garage - Render Deployment Configuration
+# Deploys as a Docker-based Web Service on Render
+#
+# Prerequisites:
+# 1. Connect GitHub repository to Render
+# 2. Create new "Web Service" -> "Docker"
+# 3. Configure environment variables in Render dashboard
+# 4. Deploy
+
+services:
+  - type: web
+    name: i20-ai-garage-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Plan: Starter (free tier) or Standard for production
+    plan: starter
+
+    # Region: Choose closest to users
+    region: oregon
+
+    # Branch to deploy
+    branch: master
+
+    # Build command (Docker builds automatically)
+    # No build command needed for Docker
+
+    # Start command (defined in Dockerfile ENTRYPOINT)
+    # startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+
+    # Health check path (uses Streamlit's built-in endpoint)
+    healthCheckPath: /_stcore/health
+
+    # Auto-deploy on push to master
+    autoDeploy: true
+
+    # Environment variables (set in Render Dashboard -> Environment)
+    # See docs/DEPLOYMENT_GUIDE.md for complete list
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"
+      - key: STREAMLIT_SERVER_HEADLESS
+        value: "true"
+      - key: STREAMLIT_SERVER_ENABLE_CORS
+        value: "false"
+      - key: STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION
+        value: "true"
+      - key: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+        value: "false"
+
+      # Application Configuration (Staging)
+      - key: OBD_MODE
+        value: "simulation"
+      - key: SIMULATION_INTERVAL
+        value: "1.0"
+      - key: TELEMETRY_REFRESH_INTERVAL
+        value: "2.0"
+      - key: DATABASE_PATH
+        value: "/app/data/i20_garage_staging.db"
+
+      # AI Configuration (LM Studio not available in cloud)
+      # Leave unset or set to empty to disable AI gracefully
+      # - key: LM_STUDIO_BASE_URL
+      #   value: ""
+      # - key: LM_STUDIO_MODEL
+      #   value: "qwen2.5-3b-instruct"
+      # - key: LM_STUDIO_TEMPERATURE
+      #   value: "0.7"
+      # - key: LM_STUDIO_TIMEOUT
+      #   value: "30"
+
+      # OBD Configuration (Simulation mode)
+      - key: OBD_PORT
+        value: "N/A"
+      - key: OBD_BAUDRATE
+        value: "38400"
+      - key: OBD_PROTOCOL
+        value: "auto"
+
+      # Vehicle Profile (read-only in staging)
+      # - key: VEHICLE_VIN
+      #   value: "MALA841CLHM123456"
+
+    # Disk: Render provides ephemeral filesystem
+    # For persistent data, attach a Render Disk (paid plan)
+    # disks:
+    #   - name: i20-data
+    #     mountPath: /app/data
+    #     sizeGB: 1
+
+    # Scaling (Starter plan: 1 instance)
+    # numInstances: 1
+
+    # Preview deployments for PRs (optional)
+    # previewEnv: true

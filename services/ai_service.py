@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from config import (
     LM_STUDIO_BASE_URL, LM_STUDIO_MODEL, LM_STUDIO_TEMPERATURE,
-    LM_STUDIO_TIMEOUT, AI_SYSTEM_PROMPT
+    LM_STUDIO_TIMEOUT, AI_SYSTEM_PROMPT, IS_STAGING
 )
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,9 @@ class AIService:
     """Service for interacting with LM Studio local API."""
 
     def __init__(self):
-        self.base_url = LM_STUDIO_BASE_URL.rstrip('/')
+        # Handle missing/empty LM_STUDIO_BASE_URL (staging mode)
+        base_url = LM_STUDIO_BASE_URL or ""
+        self.base_url = base_url.rstrip('/') if base_url else ""
         self.model = LM_STUDIO_MODEL
         self.temperature = LM_STUDIO_TEMPERATURE
         self.timeout = LM_STUDIO_TIMEOUT
@@ -65,21 +67,43 @@ class AIService:
         self._available_models: List[ModelInfo] = []
         self._last_model_check = 0
         self._model_cache_ttl = 60  # seconds
+        self._staging_mode = IS_STAGING
+        self._connection_checked = False
+        self._connection_result = False
 
     def check_connection(self) -> bool:
         """Check if LM Studio server is available."""
+        # Cache result to avoid repeated failed connections
+        if self._connection_checked:
+            return self._connection_result
+
+        # In staging mode or if no base URL configured, skip connection attempt
+        if self._staging_mode or not self.base_url:
+            logger.info("AI Service: LM Studio not configured (staging mode or empty URL)")
+            self._connection_checked = True
+            self._connection_result = False
+            return False
+
         try:
             response = self.session.get(
                 f"{self.base_url}/models",
                 timeout=5
             )
-            return response.status_code == 200
+            self._connection_result = response.status_code == 200
+            self._connection_checked = True
+            return self._connection_result
         except requests.exceptions.RequestException as e:
             logger.warning(f"LM Studio connection check failed: {e}")
+            self._connection_checked = True
+            self._connection_result = False
             return False
 
     def get_available_models(self, force_refresh: bool = False) -> List[ModelInfo]:
         """Get list of available models from LM Studio."""
+        # In staging mode or if no base URL, return empty list
+        if self._staging_mode or not self.base_url:
+            return []
+
         current_time = time.time()
         if not force_refresh and self._available_models and \
            (current_time - self._last_model_check) < self._model_cache_ttl:
@@ -133,7 +157,17 @@ class AIService:
 
         Returns:
             ChatCompletionResponse with the assistant's response
+
+        Raises:
+            AIServiceError: If LM Studio is not available (staging mode or connection failure)
         """
+        # In staging mode or if no base URL, return informative error
+        if self._staging_mode or not self.base_url:
+            raise AIServiceError(
+                "AI Assistant unavailable: LM Studio not configured in staging environment. "
+                "Please run LM Studio locally for AI features."
+            )
+
         model = model or self.model
         temperature = temperature if temperature is not None else self.temperature
 
@@ -218,7 +252,17 @@ class AIService:
 
         Yields:
             Content chunks as they arrive
+
+        Raises:
+            AIServiceError: If LM Studio is not available (staging mode or connection failure)
         """
+        # In staging mode or if no base URL, raise informative error
+        if self._staging_mode or not self.base_url:
+            raise AIServiceError(
+                "AI Assistant unavailable: LM Studio not configured in staging environment. "
+                "Please run LM Studio locally for AI features."
+            )
+
         model = model or self.model
         temperature = temperature if temperature is not None else self.temperature
 
@@ -323,12 +367,14 @@ class AIService:
 
         return {
             "connected": connected,
-            "base_url": self.base_url,
+            "base_url": self.base_url if self.base_url else "Not configured (staging)",
             "configured_model": self.model,
             "model_available": model_available,
             "available_models": [m.id for m in models],
             "temperature": self.temperature,
             "timeout": self.timeout,
+            "staging_mode": self._staging_mode,
+            "ai_available": connected and model_available,
         }
 
     # =========================================================================

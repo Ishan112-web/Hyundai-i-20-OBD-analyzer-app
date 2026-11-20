@@ -134,7 +134,7 @@ def render_settings():
         OBD_MODE, OBD_PORT, OBD_BAUDRATE, OBD_PROTOCOL,
         LM_STUDIO_BASE_URL, LM_STUDIO_MODEL, LM_STUDIO_TEMPERATURE, LM_STUDIO_TIMEOUT,
         SIMULATION_INTERVAL, TELEMETRY_REFRESH_INTERVAL,
-        VEHICLE_INFO
+        VEHICLE_INFO, IS_STAGING
     )
     from services import get_ai_service, get_obd_service
 
@@ -145,6 +145,16 @@ def render_settings():
     </div>
     """, unsafe_allow_html=True)
 
+    # Staging mode banner
+    if IS_STAGING:
+        st.warning("""
+        🚧 **Staging Environment Detected**
+        - OBD Mode is locked to **Simulation** (real hardware not available in cloud)
+        - AI Assistant requires local LM Studio (not available in staging)
+        - Database is ephemeral (data lost on redeploy)
+        - Simulation interval reduced to conserve CPU
+        """)
+
     ai_service = get_ai_service()
     obd_service = get_obd_service()
 
@@ -153,16 +163,28 @@ def render_settings():
         col1, col2 = st.columns(2)
 
         with col1:
-            obd_mode = st.selectbox(
-                "OBD Mode",
-                options=["simulation", "real"],
-                index=0 if OBD_MODE == "simulation" else 1,
-                help="Simulation mode generates demo data. Real mode connects to actual OBD-II adapter."
-            )
+            # In staging, disable real mode selection
+            if IS_STAGING:
+                st.selectbox(
+                    "OBD Mode",
+                    options=["simulation"],
+                    index=0,
+                    disabled=True,
+                    help="🔒 Locked to Simulation in staging environment"
+                )
+                obd_mode = "simulation"
+            else:
+                obd_mode = st.selectbox(
+                    "OBD Mode",
+                    options=["simulation", "real"],
+                    index=0 if OBD_MODE == "simulation" else 1,
+                    help="Simulation mode generates demo data. Real mode connects to actual OBD-II adapter."
+                )
 
             obd_port = st.text_input(
                 "Serial Port",
                 value=OBD_PORT,
+                disabled=IS_STAGING,
                 help="Serial port for OBD-II adapter (e.g., COM3 on Windows, /dev/ttyUSB0 on Linux)"
             )
 
@@ -181,77 +203,96 @@ def render_settings():
                 help="OBD-II communication protocol (auto-detect recommended)"
             )
 
-        # Connection test
+        # Connection test (disabled in staging)
         col1, col2, col3 = st.columns([1, 1, 4])
-        with col1:
-            if st.button("🔍 Test Connection", use_container_width=True):
-                with st.spinner("Testing OBD connection..."):
-                    result = obd_service.connect(obd_port, obd_baudrate, obd_protocol)
-                    if result:
-                        st.success("✅ OBD connection successful!")
-                        st.session_state.obd_connected = True
-                    else:
-                        st.error("❌ OBD connection failed")
-                        st.session_state.obd_connected = False
-        with col2:
-            if st.button("🔌 Disconnect", use_container_width=True):
-                obd_service.disconnect()
-                st.session_state.obd_connected = False
-                st.success("Disconnected from OBD")
+        if not IS_STAGING:
+            with col1:
+                if st.button("🔍 Test Connection", use_container_width=True):
+                    with st.spinner("Testing OBD connection..."):
+                        result = obd_service.connect(obd_port, obd_baudrate, obd_protocol)
+                        if result:
+                            st.success("✅ OBD connection successful!")
+                            st.session_state.obd_connected = True
+                        else:
+                            st.error("❌ OBD connection failed")
+                            st.session_state.obd_connected = False
+            with col2:
+                if st.button("🔌 Disconnect", use_container_width=True):
+                    obd_service.disconnect()
+                    st.session_state.obd_connected = False
+                    st.success("Disconnected from OBD")
+        else:
+            st.info("🔒 Connection testing disabled in staging (simulation only)")
 
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
     # AI Assistant Settings
     with st.expander("🤖 AI Assistant Settings", expanded=True):
-        col1, col2 = st.columns(2)
+        if IS_STAGING:
+            st.info("""
+            🤖 **AI Assistant Unavailable in Staging**
+            - LM Studio runs locally on your development machine
+            - Cloud staging environment has no access to local LM Studio
+            - To test AI features, run the application locally with LM Studio running
+            """)
+            # Show read-only config
+            col1, col2 = st.columns(2)
+            with col1:
+                st.text_input("LM Studio Base URL", value="Not configured (staging)", disabled=True)
+                st.text_input("Model Name", value=LM_STUDIO_MODEL, disabled=True)
+            with col2:
+                st.slider("Temperature", 0.0, 1.0, value=LM_STUDIO_TEMPERATURE, step=0.1, disabled=True)
+                st.number_input("Timeout (seconds)", 5, 120, value=LM_STUDIO_TIMEOUT, disabled=True)
+        else:
+            col1, col2 = st.columns(2)
 
-        with col1:
-            lm_studio_url = st.text_input(
-                "LM Studio Base URL",
-                value=LM_STUDIO_BASE_URL,
-                help="Base URL for LM Studio OpenAI-compatible API server"
-            )
+            with col1:
+                lm_studio_url = st.text_input(
+                    "LM Studio Base URL",
+                    value=LM_STUDIO_BASE_URL,
+                    help="Base URL for LM Studio OpenAI-compatible API server"
+                )
 
-            lm_studio_model = st.text_input(
-                "Model Name",
-                value=LM_STUDIO_MODEL,
-                help="Name of the loaded model in LM Studio"
-            )
+                lm_studio_model = st.text_input(
+                    "Model Name",
+                    value=LM_STUDIO_MODEL,
+                    help="Name of the loaded model in LM Studio"
+                )
 
-        with col2:
-            lm_studio_temp = st.slider(
-                "Temperature",
-                min_value=0.0,
-                max_value=1.0,
-                value=LM_STUDIO_TEMPERATURE,
-                step=0.1,
-                help="Controls randomness in AI responses (0 = deterministic, 1 = creative)"
-            )
+            with col2:
+                lm_studio_temp = st.slider(
+                    "Temperature",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=LM_STUDIO_TEMPERATURE,
+                    step=0.1,
+                    help="Controls randomness in AI responses (0 = deterministic, 1 = creative)"
+                )
 
-            lm_studio_timeout = st.number_input(
-                "Timeout (seconds)",
-                min_value=5,
-                max_value=120,
-                value=LM_STUDIO_TIMEOUT,
-                help="Request timeout for AI service"
-            )
+                lm_studio_timeout = st.number_input(
+                    "Timeout (seconds)",
+                    min_value=5,
+                    max_value=120,
+                    value=LM_STUDIO_TIMEOUT,
+                    help="Request timeout for AI service"
+                )
 
-        # AI connection test
-        col1, col2, col3 = st.columns([1, 1, 4])
-        with col1:
-            if st.button("🔍 Test AI Connection", use_container_width=True):
-                with st.spinner("Testing AI connection..."):
-                    ai_service.base_url = lm_studio_url
-                    ai_service.model = lm_studio_model
-                    ai_service.temperature = lm_studio_temp
-                    ai_service.timeout = lm_studio_timeout
-                    result = ai_service.check_connection()
-                    if result:
-                        st.success("✅ AI connection successful!")
-                        st.session_state.ai_connected = True
-                    else:
-                        st.error("❌ AI connection failed - check LM Studio is running")
-                        st.session_state.ai_connected = False
+            # AI connection test
+            col1, col2, col3 = st.columns([1, 1, 4])
+            with col1:
+                if st.button("🔍 Test AI Connection", use_container_width=True):
+                    with st.spinner("Testing AI connection..."):
+                        ai_service.base_url = lm_studio_url
+                        ai_service.model = lm_studio_model
+                        ai_service.temperature = lm_studio_temp
+                        ai_service.timeout = lm_studio_timeout
+                        result = ai_service.check_connection()
+                        if result:
+                            st.success("✅ AI connection successful!")
+                            st.session_state.ai_connected = True
+                        else:
+                            st.error("❌ AI connection failed - check LM Studio is running")
+                            st.session_state.ai_connected = False
 
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
